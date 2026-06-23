@@ -299,8 +299,25 @@ export class OrdersService {
       throw new NotFoundException({ message: 'Снимок сделки не найден', code: ErrorCode.RESOURCE_NOT_FOUND });
     }
 
-    const buyerContact = snapshot.buyerContact as any;
-    const supplierContact = snapshot.supplierContact as any;
+    const buyerOrg = await this.prisma.organization.findUnique({ 
+      where: { id: snapshot.buyerOrganizationId },
+      include: { owner: true }
+    });
+    const supplierOrg = await this.prisma.organization.findUnique({ 
+      where: { id: snapshot.supplierOrganizationId },
+      include: { owner: true }
+    });
+
+    const buyerContact = (buyerOrg?.contacts as any) || snapshot.buyerContact || {};
+    if (!buyerContact.email && buyerOrg?.owner?.email) {
+      buyerContact.email = buyerOrg.owner.email;
+    }
+
+    const supplierContact = (supplierOrg?.contacts as any) || snapshot.supplierContact || {};
+    if (!supplierContact.email && supplierOrg?.owner?.email) {
+      supplierContact.email = supplierOrg.owner.email;
+    }
+
     const buyerProfile = snapshot.buyerPublicProfile as any;
     const supplierProfile = snapshot.supplierPublicProfile as any;
 
@@ -311,6 +328,10 @@ export class OrdersService {
       supplierBin: supplierProfile.bin,
       buyerLegalName: buyerProfile.legalName,
       supplierLegalName: supplierProfile.legalName,
+      buyerLegalType: buyerProfile.legalType,
+      supplierLegalType: supplierProfile.legalType,
+      buyerOrgId: snapshot.buyerOrganizationId,
+      supplierOrgId: snapshot.supplierOrganizationId,
     };
   }
 

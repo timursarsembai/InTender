@@ -6,12 +6,23 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { Button } from '@/components/ui/Button/Button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/Table/Table';
 import { Badge } from '@/components/ui/Badge/Badge';
+import { Modal } from '@/components/ui/Modal/Modal';
 
 export default function WalletPage() {
   const { user, refreshUser } = useAuth();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isToppingUp, setIsToppingUp] = useState(false);
+
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+  }>({ isOpen: false, title: '', message: '' });
+
+  const showInfo = (title: string, message: string) => {
+    setModalState({ isOpen: true, title, message });
+  };
 
   useEffect(() => {
     fetchTransactions();
@@ -40,7 +51,7 @@ export default function WalletPage() {
       await fetchTransactions(); // Refresh list
     } catch (err) {
       console.error(err);
-      alert('Ошибка пополнения баланса');
+      showInfo('Ошибка', 'Ошибка пополнения баланса');
     } finally {
       setIsToppingUp(false);
     }
@@ -126,6 +137,19 @@ export default function WalletPage() {
           )}
         </div>
       </div>
+
+      <Modal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+        title={modalState.title}
+        footer={
+          <Button variant="primary" onClick={() => setModalState(prev => ({ ...prev, isOpen: false }))}>
+            ОК
+          </Button>
+        }
+      >
+        <p>{modalState.message}</p>
+      </Modal>
     </div>
   );
 }

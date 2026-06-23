@@ -26,6 +26,8 @@ export class OrganizationsService {
 
   async createOrUpdate(ownerUserId: string, data: any) {
     // Upsert organization for user
+    const contacts = data.email ? { email: data.email } : {};
+    
     return this.prisma.organization.upsert({
       where: { ownerUserId },
       update: {
@@ -33,6 +35,7 @@ export class OrganizationsService {
         legalName: data.legalName,
         bin: data.bin,
         cityId: data.cityId,
+        contacts,
       },
       create: {
         ownerUserId,
@@ -40,6 +43,7 @@ export class OrganizationsService {
         legalName: data.legalName,
         bin: data.bin,
         cityId: data.cityId,
+        contacts,
       },
     });
   }

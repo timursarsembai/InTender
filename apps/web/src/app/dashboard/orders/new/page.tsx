@@ -19,6 +19,18 @@ export default function NewOrderPage() {
   const [showAiConfirmModal, setShowAiConfirmModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'info' | 'confirm';
+    onConfirm?: () => void;
+  }>({ isOpen: false, title: '', message: '', type: 'info' });
+
+  const showInfo = (title: string, message: string) => {
+    setModalState({ isOpen: true, title, message, type: 'info' });
+  };
+
   // Form State
   const [formData, setFormData] = useState({
     title: '',
@@ -56,13 +68,13 @@ export default function NewOrderPage() {
               title: job.resultJson.items[0].name || prev.title,
               specification: mergedSpec,
             }));
-            alert('Спецификация успешно распознана!');
+            showInfo('Успех', 'Спецификация успешно распознана!');
           }
         } else if (job.status === 'FAILED') {
           clearInterval(pollInterval);
           setIsAiLoading(false);
           setAiJobId(null);
-          alert('Ошибка ИИ-парсинга. Средства будут возвращены.');
+          showInfo('Ошибка', 'Ошибка ИИ-парсинга. Средства будут возвращены.');
         }
       } catch (err) {
         console.error('Polling error', err);
@@ -94,7 +106,7 @@ export default function NewOrderPage() {
 
       setAiJobId(parseRes.id);
     } catch (err: any) {
-      alert(err.message || 'Ошибка запуска ИИ');
+      showInfo('Ошибка', err.message || 'Ошибка запуска ИИ');
       setIsAiLoading(false);
     }
   };
@@ -123,7 +135,7 @@ export default function NewOrderPage() {
 
       router.push('/dashboard/orders');
     } catch (err: any) {
-      alert(err.message || 'Ошибка публикации заказа');
+      showInfo('Ошибка', err.message || 'Ошибка публикации заказа');
     } finally {
       setIsLoading(false);
     }
@@ -235,6 +247,30 @@ export default function NewOrderPage() {
       >
         <p>Вы собираетесь запустить автоматический разбор файла спецификации с помощью ИИ. С вашего баланса будет немедленно списано <strong>1 000 ₸</strong>.</p>
         <p style={{ marginTop: '1rem' }}>Если система не сможет обработать файл, средства будут возвращены.</p>
+      </Modal>
+
+      {/* Info/Confirm Modal */}
+      <Modal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+        title={modalState.title}
+        footer={
+          <>
+            {modalState.type === 'confirm' && (
+              <Button variant="ghost" onClick={() => setModalState(prev => ({ ...prev, isOpen: false }))}>Отмена</Button>
+            )}
+            <Button variant="primary" onClick={() => {
+              setModalState(prev => ({ ...prev, isOpen: false }));
+              if (modalState.type === 'confirm' && modalState.onConfirm) {
+                modalState.onConfirm();
+              }
+            }}>
+              ОК
+            </Button>
+          </>
+        }
+      >
+        <p>{modalState.message}</p>
       </Modal>
     </div>
   );

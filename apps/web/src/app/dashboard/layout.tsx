@@ -39,6 +39,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard/orders" className={styles.navItem}>
             {user.role === 'BUYER' ? 'Мои заказы' : 'Лента заказов'}
           </Link>
+          {user.role === 'SUPPLIER' && (
+            <Link href="/dashboard/offers" className={styles.navItem}>Мои отклики</Link>
+          )}
           <Link href="/dashboard/wallet" className={styles.navItem}>Кошелек</Link>
           <Link href="/dashboard/notifications" className={styles.navItem}>Уведомления</Link>
           <Link href="/dashboard/settings" className={styles.navItem}>Настройки</Link>

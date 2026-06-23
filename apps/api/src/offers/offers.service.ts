@@ -77,6 +77,16 @@ export class OffersService {
             where: { id: offer.id },
             data: { currentVersionId: offer.versions[0].id },
           });
+
+          await tx.notification.create({
+            data: {
+              userId: order.buyerId,
+              type: 'OFFER_RECEIVED',
+              title: 'Новый отклик',
+              message: `На ваш заказ "${order.title}" поступил новый отклик!`,
+              payload: { orderId: order.id, offerId: offer.id }
+            }
+          });
         }
       );
     } catch (error) {

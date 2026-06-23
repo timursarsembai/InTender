@@ -17,6 +17,7 @@ export default function OrderDetailsPage() {
   
   const [order, setOrder] = useState<any>(null);
   const [offers, setOffers] = useState<any[]>([]);
+  const [myOffer, setMyOffer] = useState<any>(null);
   const [contacts, setContacts] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -29,6 +30,22 @@ export default function OrderDetailsPage() {
   const [ratingVal, setRatingVal] = useState('5');
   const [ratingComment, setRatingComment] = useState('');
   const [isRatingLoading, setIsRatingLoading] = useState(false);
+
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'info' | 'confirm';
+    onConfirm?: () => void;
+  }>({ isOpen: false, title: '', message: '', type: 'info' });
+
+  const showInfo = (title: string, message: string) => {
+    setModalState({ isOpen: true, title, message, type: 'info' });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setModalState({ isOpen: true, title, message, type: 'confirm', onConfirm });
+  };
 
   useEffect(() => {
     fetchData();
@@ -46,6 +63,17 @@ export default function OrderDetailsPage() {
           setOffers(offersData);
         } catch (e) {
           console.error('No offers fetched');
+        }
+      }
+
+      // Fetch own offer if supplier
+      if (user?.role === 'SUPPLIER') {
+        try {
+          const myOffersData = await api.get<any[]>('/me/offers');
+          const offerForThisOrder = myOffersData.find((o: any) => o.orderId === params.id);
+          setMyOffer(offerForThisOrder || null);
+        } catch (e) {
+          console.error('No own offers fetched');
         }
       }
 
@@ -71,35 +99,49 @@ export default function OrderDetailsPage() {
     setIsOfferLoading(true);
 
     try {
+      const pricePerUnitMinor = parseInt(offerPrice, 10) * 100;
+      const goodsTotalMinor = pricePerUnitMinor * order.quantity;
+      const deliveryCostMinor = 0;
+      const grandTotalMinor = goodsTotalMinor + deliveryCostMinor;
+
       await api.post(`/orders/${order.id}/offers`, {
-        pricePerUnitMinor: parseInt(offerPrice, 10) * 100,
-        deliveryCostMinor: 0,
+        pricePerUnitMinor,
+        goodsTotalMinor,
+        deliveryCostMinor,
+        grandTotalMinor,
         vatStatus: 'PRICE_EXCLUDES_VAT',
         deliveryDays: 3,
+        paymentTerms: order.paymentTerms || 'По договоренности',
+        confirmations: {
+          isNew: true,
+          conforms: true,
+          hasCertificates: order.certificateRequired || false
+        },
         idempotencyKey: `offer-${Date.now()}`
       });
       
-      alert('Отклик успешно подан!');
+      showInfo('Успех', 'Отклик успешно подан!');
       setShowOfferModal(false);
       fetchData();
     } catch (err: any) {
-      alert(err.message || 'Ошибка подачи отклика');
+      showInfo('Ошибка', err.message || 'Ошибка подачи отклика');
     } finally {
       setIsOfferLoading(false);
     }
   };
 
   const handleAcceptOffer = async (offerId: string) => {
-    if (!confirm('Вы уверены, что хотите принять этот оффер?')) return;
-    try {
-      await api.post(`/offers/${offerId}/accept`, {
-        idempotencyKey: `accept-${Date.now()}`
-      });
-      alert('Оффер принят!');
-      fetchData();
-    } catch (err: any) {
-      alert(err.message || 'Ошибка принятия оффера');
-    }
+    showConfirm('Подтверждение', 'Вы уверены, что хотите принять этот оффер?', async () => {
+      try {
+        await api.post(`/offers/${offerId}/accept`, {
+          idempotencyKey: `accept-${Date.now()}`
+        });
+        showInfo('Успех', 'Оффер принят!');
+        fetchData();
+      } catch (err: any) {
+        showInfo('Ошибка', err.message || 'Ошибка принятия оффера');
+      }
+    });
   };
 
   const handleSubmitRating = async (e: React.FormEvent) => {
@@ -108,15 +150,15 @@ export default function OrderDetailsPage() {
     try {
       // Create rating
       await api.post('/ratings', {
-        targetOrganizationId: contacts?.organizationId || '',
+        targetOrganizationId: counterpartyOrgId || '',
         orderId: order.id,
         score: parseInt(ratingVal, 10),
         comment: ratingComment
       });
-      alert('Рейтинг успешно сохранен!');
+      showInfo('Успех', 'Рейтинг успешно сохранен!');
       setShowRatingModal(false);
     } catch (err: any) {
-      alert(err.message || 'Ошибка сохранения рейтинга');
+      showInfo('Ошибка', err.message || 'Ошибка сохранения рейтинга');
     } finally {
       setIsRatingLoading(false);
     }
@@ -124,6 +166,17 @@ export default function OrderDetailsPage() {
 
   if (isLoading) return <p>Загрузка...</p>;
   if (!order) return <p>Заказ не найден</p>;
+
+  const isBuyer = user?.role === 'BUYER';
+  const counterpartyContacts = contacts ? (isBuyer ? contacts.supplierContacts : contacts.buyerContacts) : null;
+  const counterpartyName = contacts ? (isBuyer ? contacts.supplierLegalName : contacts.buyerLegalName) : null;
+  const counterpartyType = contacts ? (isBuyer ? contacts.supplierLegalType : contacts.buyerLegalType) : null;
+  const counterpartyBin = contacts ? (isBuyer ? contacts.supplierBin : contacts.buyerBin) : null;
+  const counterpartyOrgId = contacts ? (isBuyer ? contacts.supplierOrgId : contacts.buyerOrgId) : null;
+  
+  const typeMap: Record<string, string> = { TOO: 'ТОО', IP: 'ИП', OTHER: '' };
+  const localizedType = counterpartyType ? typeMap[counterpartyType] : '';
+  const formattedCounterpartyName = counterpartyName ? `${localizedType ? localizedType + ' ' : ''}"${counterpartyName}"` : 'Не указано';
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -161,11 +214,29 @@ export default function OrderDetailsPage() {
           {order.specification}
         </div>
 
-        {user?.role === 'SUPPLIER' && order.status === 'PUBLISHED' && (
+        {user?.role === 'SUPPLIER' && order.status === 'PUBLISHED' && !myOffer && (
           <div style={{ marginTop: '2rem', borderTop: '1px solid var(--border-color)', paddingTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
             <Button size="lg" variant="primary" onClick={() => setShowOfferModal(true)}>
               Подать отклик (50 ₸)
             </Button>
+          </div>
+        )}
+
+        {user?.role === 'SUPPLIER' && myOffer && (
+          <div style={{ marginTop: '2rem', borderTop: '1px solid var(--border-color)', paddingTop: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>Ваш отклик</h3>
+            <Card>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
+                    {myOffer.versions?.[0] ? (myOffer.versions[0].pricePerUnitMinor / 100).toLocaleString('ru-RU') : '0'} ₸ / {order.unit}
+                  </div>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                    Статус: <Badge variant={myOffer.status === 'ACCEPTED' ? 'success' : myOffer.status === 'REJECTED' ? 'danger' : 'primary'}>{myOffer.status}</Badge>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
         )}
       </div>
@@ -178,8 +249,8 @@ export default function OrderDetailsPage() {
               <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--accent-hover)', marginBottom: '1rem' }}>
                 Контакты Контрагента
               </h3>
-              <p><strong>Email:</strong> {contacts.email}</p>
-              <p><strong>Организация ID:</strong> {contacts.organizationId}</p>
+              <p><strong>Название:</strong> {formattedCounterpartyName} (БИН: {counterpartyBin || 'Не указан'})</p>
+              <p><strong>Email:</strong> {counterpartyContacts?.email || 'Не указан'}</p>
               <p><strong>Рейтинг:</strong> ⭐ {contacts.averageRating ? contacts.averageRating.toFixed(1) : 'Нет отзывов'}</p>
             </div>
             <Button onClick={() => setShowRatingModal(true)} variant="primary">
@@ -201,8 +272,8 @@ export default function OrderDetailsPage() {
                 <Card key={offer.id}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{(offer.pricePerUnitMinor / 100).toLocaleString('ru-RU')} ₸ / {order.unit}</div>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Срок поставки: {offer.deliveryDays} дн.</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{offer.versions?.[0] ? (offer.versions[0].pricePerUnitMinor / 100).toLocaleString('ru-RU') : '0'} ₸ / {order.unit}</div>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Срок поставки: {offer.versions?.[0]?.deliveryDays ?? '-'} дн.</div>
                     </div>
                     <Button variant="primary" onClick={() => handleAcceptOffer(offer.id)}>
                       Принять
@@ -273,6 +344,29 @@ export default function OrderDetailsPage() {
             onChange={e => setRatingComment(e.target.value)}
           />
         </form>
+      </Modal>
+      {/* Info/Confirm Modal */}
+      <Modal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+        title={modalState.title}
+        footer={
+          <>
+            {modalState.type === 'confirm' && (
+              <Button variant="ghost" onClick={() => setModalState(prev => ({ ...prev, isOpen: false }))}>Отмена</Button>
+            )}
+            <Button variant="primary" onClick={() => {
+              setModalState(prev => ({ ...prev, isOpen: false }));
+              if (modalState.type === 'confirm' && modalState.onConfirm) {
+                modalState.onConfirm();
+              }
+            }}>
+              ОК
+            </Button>
+          </>
+        }
+      >
+        <p>{modalState.message}</p>
       </Modal>
     </div>
   );
