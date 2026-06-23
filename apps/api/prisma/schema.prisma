@@ -1,0 +1,471 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Identity ────────────────────────────────────────────────────────
+
+enum UserRole {
+  BUYER
+  SUPPLIER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  phone        String?
+  passwordHash String     @map("password_hash")
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization?
+  wallet       Wallet?
+  orders       Order[]
+  files        FileObject[]
+  aiSpecJobs   AiSpecJob[]
+  auditEvents  AuditEvent[]     @relation("AuditActor")
+
+  buyerDisclosures    ContactDisclosure[] @relation("BuyerDisclosure")
+  supplierDisclosures ContactDisclosure[] @relation("SupplierDisclosure")
+
+  reportedComplaints  Complaint[]         @relation("ComplaintReporter")
+  targetedComplaints  Complaint[]         @relation("ComplaintTarget")
+  resolvedComplaints  Complaint[]         @relation("ComplaintResolver")
+
+  authoredRatings     Rating[]            @relation("RatingAuthor")
+  targetedRatings     Rating[]            @relation("RatingTarget")
+
+  notifications       Notification[]      @relation("UserNotifications")
+
+  @@map("users")
+}
+
+// ─── Organization ────────────────────────────────────────────────────
+
+enum OrganizationLegalType {
+  IP
+  TOO
+  OTHER
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum VatPayerStatus {
+  VAT_PAYER
+  NOT_VAT_PAYER
+  UNKNOWN
+}
+
+model Organization {
+  id                 String                @id @default(uuid()) @db.Uuid
+  ownerUserId        String                @unique @map("owner_user_id") @db.Uuid
+  legalType          OrganizationLegalType @map("legal_type")
+  legalName          String                @map("legal_name")
+  bin                String                @unique @db.VarChar(12)
+  cityId             String?               @map("city_id")
+  businessStartedAt  DateTime?             @map("business_started_at") @db.Timestamptz
+  vatPayerStatus     VatPayerStatus        @default(UNKNOWN) @map("vat_payer_status")
+  verificationStatus VerificationStatus    @default(PENDING) @map("verification_status")
+  publicAlias        String?               @map("public_alias")
+  contacts           Json?
+  createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+
+  owner                   User                    @relation(fields: [ownerUserId], references: [id])
+  offers                  Offer[]
+  buyerSnapshots          AcceptedOfferSnapshot[]  @relation("BuyerOrg")
+  supplierSnapshots       AcceptedOfferSnapshot[]  @relation("SupplierOrg")
+
+  @@map("organizations")
+}
+
+// ─── Wallet ──────────────────────────────────────────────────────────
+
+model Wallet {
+  id                    String              @id @default(uuid()) @db.Uuid
+  userId                String              @unique @map("user_id") @db.Uuid
+  currency              String              @default("KZT") @db.VarChar(3)
+  availableBalanceMinor Int                 @default(0) @map("available_balance_minor")
+  version               Int                 @default(0)
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+
+  user         User                @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+enum WalletTransactionType {
+  TOP_UP
+  ORDER_PUBLICATION
+  OFFER_SUBMISSION
+  AI_SPEC_ANALYSIS
+  REFUND
+  ADMIN_ADJUSTMENT
+}
+
+enum TransactionDirection {
+  CREDIT
+  DEBIT
+}
+
+model WalletTransaction {
+  id                String               @id @default(uuid()) @db.Uuid
+  walletId          String               @map("wallet_id") @db.Uuid
+  type              WalletTransactionType
+  amountMinor       Int                  @map("amount_minor")
+  direction         TransactionDirection
+  referenceType     String?              @map("reference_type")
+  referenceId       String?              @map("reference_id") @db.Uuid
+  idempotencyKey    String               @unique @map("idempotency_key")
+  balanceAfterMinor Int                  @map("balance_after_minor")
+  description       String?
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@map("wallet_transactions")
+}
+
+// ─── Orders ──────────────────────────────────────────────────────────
+
+enum OrderStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED_ACCEPTED
+  CLOSED_WITHOUT_SELECTION
+  CANCELLED
+  BLOCKED
+  ARCHIVED
+}
+
+enum VatOption {
+  VAT_REQUIRED
+  VAT_NOT_REQUIRED
+  VAT_ANY
+}
+
+enum LogisticsOption {
+  BUYER_PICKUP
+  SUPPLIER_DELIVERY
+  EITHER
+}
+
+model Order {
+  id                  String          @id @default(uuid()) @db.Uuid
+  buyerId             String          @map("buyer_id") @db.Uuid
+  status              OrderStatus     @default(DRAFT)
+  title               String
+  categoryId          String?         @map("category_id")
+  quantity            Int
+  unit                String
+  specification       String?
+  brandModel          String?         @map("brand_model")
+  deliveryAddress     String          @map("delivery_address")
+  supplierGeography   String?         @map("supplier_geography")
+  logistics           LogisticsOption @default(EITHER)
+  desiredPriceMinor   Int?            @map("desired_price_minor")
+  vatOption           VatOption       @default(VAT_ANY) @map("vat_option")
+  paymentTerms        String?         @map("payment_terms")
+  deadline            DateTime        @db.Timestamptz
+  offerDeadline       DateTime?       @map("offer_deadline") @db.Timestamptz
+  certificateRequired Boolean         @default(false) @map("certificate_required")
+  warrantyRequired    Boolean         @default(false) @map("warranty_required")
+  acceptedOfferId     String?         @unique @map("accepted_offer_id") @db.Uuid
+  version             Int             @default(0)
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  publishedAt         DateTime?       @map("published_at") @db.Timestamptz
+  closedAt            DateTime?       @map("closed_at") @db.Timestamptz
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  buyer             User                    @relation(fields: [buyerId], references: [id])
+  attachments       OrderAttachment[]
+  offers            Offer[]
+  snapshots         AcceptedOfferSnapshot[]
+  disclosures       ContactDisclosure[]
+  ratings           Rating[]
+
+  @@index([buyerId, status])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+// ─── Files ───────────────────────────────────────────────────────────
+
+enum FileVisibility {
+  SUPPLIERS_VISIBLE
+  OWNER_ONLY_AI_SOURCE
+}
+
+enum AntivirusStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  SKIPPED
+}
+
+model FileObject {
+  id               String          @id @default(uuid()) @db.Uuid
+  ownerUserId      String          @map("owner_user_id") @db.Uuid
+  storageKey       String          @unique @map("storage_key")
+  originalName     String          @map("original_name")
+  mimeType         String          @map("mime_type")
+  sizeBytes        Int             @map("size_bytes")
+  checksum         String?
+  antivirusStatus  AntivirusStatus @default(PENDING) @map("antivirus_status")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  owner       User              @relation(fields: [ownerUserId], references: [id])
+  attachments OrderAttachment[]
+  aiSpecJobs  AiSpecJob[]
+
+  @@map("file_objects")
+}
+
+model OrderAttachment {
+  id         String         @id @default(uuid()) @db.Uuid
+  orderId    String         @map("order_id") @db.Uuid
+  fileId     String         @map("file_id") @db.Uuid
+  visibility FileVisibility
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  order Order      @relation(fields: [orderId], references: [id])
+  file  FileObject @relation(fields: [fileId], references: [id])
+
+  @@map("order_attachments")
+}
+
+// ─── Offers ──────────────────────────────────────────────────────────
+
+enum OfferStatus {
+  ACTIVE
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum OfferVatStatus {
+  PRICE_INCLUDES_VAT
+  PRICE_EXCLUDES_VAT
+  SUPPLIER_NOT_VAT_PAYER
+}
+
+model Offer {
+  id                       String       @id @default(uuid()) @db.Uuid
+  orderId                  String       @map("order_id") @db.Uuid
+  supplierOrganizationId   String       @map("supplier_organization_id") @db.Uuid
+  status                   OfferStatus  @default(ACTIVE)
+  currentVersionId         String?      @map("current_version_id") @db.Uuid
+  createdAt                DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  order                    Order        @relation(fields: [orderId], references: [id])
+  supplierOrganization     Organization @relation(fields: [supplierOrganizationId], references: [id])
+  versions                 OfferVersion[]
+  snapshot                 AcceptedOfferSnapshot?
+
+  @@unique([orderId, supplierOrganizationId])
+  @@index([orderId, status])
+  @@map("offers")
+}
+
+model OfferVersion {
+  id                String         @id @default(uuid()) @db.Uuid
+  offerId           String         @map("offer_id") @db.Uuid
+  pricePerUnitMinor Int            @map("price_per_unit_minor")
+  snapshotQuantity  Int            @map("snapshot_quantity")
+  goodsTotalMinor   Int            @map("goods_total_minor")
+  deliveryCostMinor Int            @default(0) @map("delivery_cost_minor")
+  grandTotalMinor   Int            @map("grand_total_minor")
+  brandModel        String?        @map("brand_model")
+  vatStatus         OfferVatStatus @map("vat_status")
+  paymentTerms      String?        @map("payment_terms")
+  deliveryDays      Int            @map("delivery_days")
+  confirmations     Json?
+  comment           String?
+  versionNumber     Int            @map("version_number")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  offer Offer @relation(fields: [offerId], references: [id])
+
+  @@index([offerId, versionNumber])
+  @@map("offer_versions")
+}
+
+// ─── Acceptance ──────────────────────────────────────────────────────
+
+model AcceptedOfferSnapshot {
+  id                       String   @id @default(uuid()) @db.Uuid
+  offerId                  String   @unique @map("offer_id") @db.Uuid
+  orderId                  String   @map("order_id") @db.Uuid
+  buyerOrganizationId      String   @map("buyer_organization_id") @db.Uuid
+  supplierOrganizationId   String   @map("supplier_organization_id") @db.Uuid
+  orderSnapshot            Json     @map("order_snapshot")
+  offerVersionSnapshot     Json     @map("offer_version_snapshot")
+  buyerPublicProfile       Json     @map("buyer_public_profile")
+  supplierPublicProfile    Json     @map("supplier_public_profile")
+  buyerContact             Json     @map("buyer_contact")
+  supplierContact          Json     @map("supplier_contact")
+  commercialTerms          Json     @map("commercial_terms")
+  acceptedAt               DateTime @default(now()) @map("accepted_at") @db.Timestamptz
+
+  offer                    Offer        @relation(fields: [offerId], references: [id])
+  order                    Order        @relation(fields: [orderId], references: [id])
+  buyerOrganization        Organization @relation("BuyerOrg", fields: [buyerOrganizationId], references: [id])
+  supplierOrganization     Organization @relation("SupplierOrg", fields: [supplierOrganizationId], references: [id])
+
+  @@map("accepted_offer_snapshots")
+}
+
+enum ContactDisclosureReason {
+  OFFER_ACCEPTED
+}
+
+model ContactDisclosure {
+  id             String                   @id @default(uuid()) @db.Uuid
+  orderId        String                   @map("order_id") @db.Uuid
+  buyerUserId    String                   @map("buyer_user_id") @db.Uuid
+  supplierUserId String                   @map("supplier_user_id") @db.Uuid
+  reason         ContactDisclosureReason
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz
+
+  order    Order @relation(fields: [orderId], references: [id])
+  buyer    User  @relation("BuyerDisclosure", fields: [buyerUserId], references: [id])
+  supplier User  @relation("SupplierDisclosure", fields: [supplierUserId], references: [id])
+
+  @@unique([orderId, buyerUserId, supplierUserId])
+  @@map("contact_disclosures")
+}
+
+// ─── AI Specification ────────────────────────────────────────────────
+
+enum AiSpecJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model AiSpecJob {
+  id                    String          @id @default(uuid()) @db.Uuid
+  userId                String          @map("user_id") @db.Uuid
+  sourceFileId          String          @map("source_file_id") @db.Uuid
+  status                AiSpecJobStatus @default(PENDING)
+  priceMinor            Int             @map("price_minor")
+  selectedPositionIndex Int?            @map("selected_position_index")
+  resultJson            Json?           @map("result_json")
+  redactionReport       Json?           @map("redaction_report")
+  failureCode           String?         @map("failure_code")
+  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  completedAt           DateTime?       @map("completed_at") @db.Timestamptz
+
+  user       User       @relation(fields: [userId], references: [id])
+  sourceFile FileObject @relation(fields: [sourceFileId], references: [id])
+
+  @@map("ai_spec_jobs")
+}
+
+// ─── Audit ───────────────────────────────────────────────────────────
+
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  action      String
+  targetType  String   @map("target_type")
+  targetId    String   @map("target_id")
+  payload     Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([targetType, targetId])
+  @@index([actorUserId, createdAt])
+  @@map("audit_events")
+}
+
+// ─── Complaints ──────────────────────────────────────────────────────
+
+enum ComplaintStatus {
+  PENDING
+  RESOLVED
+  REJECTED
+}
+
+model Complaint {
+  id               String          @id @default(uuid()) @db.Uuid
+  reporterUserId   String          @map("reporter_user_id") @db.Uuid
+  targetUserId     String?         @map("target_user_id") @db.Uuid
+  targetOrderId    String?         @map("target_order_id") @db.Uuid
+  targetOfferId    String?         @map("target_offer_id") @db.Uuid
+  reason           String
+  description      String?
+  status           ComplaintStatus @default(PENDING)
+  resolution       String?
+  resolvedByUserId String?         @map("resolved_by_user_id") @db.Uuid
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  reporter   User  @relation("ComplaintReporter", fields: [reporterUserId], references: [id])
+  targetUser User? @relation("ComplaintTarget", fields: [targetUserId], references: [id])
+  resolvedBy User? @relation("ComplaintResolver", fields: [resolvedByUserId], references: [id])
+
+  @@map("complaints")
+}
+
+// ─── Ratings ─────────────────────────────────────────────────────────
+
+model Rating {
+  id             String   @id @default(uuid()) @db.Uuid
+  authorUserId   String   @map("author_user_id") @db.Uuid
+  targetUserId   String   @map("target_user_id") @db.Uuid
+  targetOrderId  String   @map("target_order_id") @db.Uuid
+  score          Int      // 1 to 5
+  comment        String?
+  isDeleted      Boolean  @default(false) @map("is_deleted")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  author User  @relation("RatingAuthor", fields: [authorUserId], references: [id])
+  target User  @relation("RatingTarget", fields: [targetUserId], references: [id])
+  order  Order @relation(fields: [targetOrderId], references: [id])
+
+  @@unique([authorUserId, targetOrderId])
+  @@map("ratings")
+}
+
+// ─── Notifications ───────────────────────────────────────────────────
+
+model Notification {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  type       String   // e.g., 'ORDER_ACCEPTED', 'OFFER_RECEIVED', 'REFUND_ISSUED'
+  title      String
+  message    String
+  isRead     Boolean  @default(false) @map("is_read")
+  payload    Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}

@@ -1,0 +1,89 @@
+export enum UserRole {
+  BUYER = 'BUYER',
+  SUPPLIER = 'SUPPLIER',
+  ADMIN = 'ADMIN',
+}
+
+export enum OrderStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  CLOSED_ACCEPTED = 'CLOSED_ACCEPTED',
+  CLOSED_WITHOUT_SELECTION = 'CLOSED_WITHOUT_SELECTION',
+  CANCELLED = 'CANCELLED',
+  BLOCKED = 'BLOCKED',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export enum OfferStatus {
+  ACTIVE = 'ACTIVE',
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED',
+  WITHDRAWN = 'WITHDRAWN',
+}
+
+export enum WalletTransactionType {
+  TOP_UP = 'TOP_UP',
+  ORDER_PUBLICATION = 'ORDER_PUBLICATION',
+  OFFER_SUBMISSION = 'OFFER_SUBMISSION',
+  AI_SPEC_ANALYSIS = 'AI_SPEC_ANALYSIS',
+  REFUND = 'REFUND',
+  ADMIN_ADJUSTMENT = 'ADMIN_ADJUSTMENT',
+}
+
+export enum TransactionDirection {
+  CREDIT = 'CREDIT',
+  DEBIT = 'DEBIT',
+}
+
+export enum AiSpecJobStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
+
+export enum FileVisibility {
+  SUPPLIERS_VISIBLE = 'SUPPLIERS_VISIBLE',
+  OWNER_ONLY_AI_SOURCE = 'OWNER_ONLY_AI_SOURCE',
+}
+
+export enum VatOption {
+  VAT_REQUIRED = 'VAT_REQUIRED',
+  VAT_NOT_REQUIRED = 'VAT_NOT_REQUIRED',
+  VAT_ANY = 'VAT_ANY',
+}
+
+export enum OfferVatStatus {
+  PRICE_INCLUDES_VAT = 'PRICE_INCLUDES_VAT',
+  PRICE_EXCLUDES_VAT = 'PRICE_EXCLUDES_VAT',
+  SUPPLIER_NOT_VAT_PAYER = 'SUPPLIER_NOT_VAT_PAYER',
+}
+
+export enum LogisticsOption {
+  BUYER_PICKUP = 'BUYER_PICKUP',
+  SUPPLIER_DELIVERY = 'SUPPLIER_DELIVERY',
+  EITHER = 'EITHER',
+}
+
+export enum VerificationStatus {
+  PENDING = 'PENDING',
+  VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
+}
+
+export enum OrganizationLegalType {
+  IP = 'IP',
+  TOO = 'TOO',
+  OTHER = 'OTHER',
+}
+
+export enum ContactDisclosureReason {
+  OFFER_ACCEPTED = 'OFFER_ACCEPTED',
+}
+
+export enum AntivirusStatus {
+  PENDING = 'PENDING',
+  CLEAN = 'CLEAN',
+  INFECTED = 'INFECTED',
+  SKIPPED = 'SKIPPED',
+}
