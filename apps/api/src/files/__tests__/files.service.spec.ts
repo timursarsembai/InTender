@@ -61,13 +61,20 @@ describe('FilesService', () => {
     });
 
     it('should throw Forbidden if user is not owner', async () => {
-      vi.mocked(prismaService.fileObject.findUnique).mockResolvedValue({ ownerUserId: 'u-2' } as any);
+      vi.mocked(prismaService.fileObject.findUnique).mockResolvedValue({
+        ownerUserId: 'u-2',
+      } as any);
       await expect(service.completeUpload('u-1', 'f-1')).rejects.toThrow(ForbiddenException);
     });
 
     it('should update antivirus status to CLEAN', async () => {
-      vi.mocked(prismaService.fileObject.findUnique).mockResolvedValue({ ownerUserId: 'u-1' } as any);
-      vi.mocked(prismaService.fileObject.update).mockResolvedValue({ id: 'f-1', antivirusStatus: AntivirusStatus.CLEAN } as any);
+      vi.mocked(prismaService.fileObject.findUnique).mockResolvedValue({
+        ownerUserId: 'u-1',
+      } as any);
+      vi.mocked(prismaService.fileObject.update).mockResolvedValue({
+        id: 'f-1',
+        antivirusStatus: AntivirusStatus.CLEAN,
+      } as any);
 
       const result = await service.completeUpload('u-1', 'f-1');
       expect(result.antivirusStatus).toBe(AntivirusStatus.CLEAN);

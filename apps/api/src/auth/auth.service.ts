@@ -1,4 +1,5 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { UserRole } from '@intender/shared';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -60,5 +61,24 @@ export class AuthService {
     });
 
     return this.login(user);
+  }
+
+  async switchRole(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+    if (user.role === 'ADMIN') {
+      throw new ConflictException('Администратор не может менять роль');
+    }
+
+    const newRole = user.role === 'BUYER' ? 'SUPPLIER' : 'BUYER';
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role: newRole as any },
+    });
+
+    return this.login(updatedUser);
   }
 }

@@ -4,7 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { Button } from '@/components/ui/Button/Button';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/Table/Table';
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from '@/components/ui/Table/Table';
 import { Badge } from '@/components/ui/Badge/Badge';
 import { Modal } from '@/components/ui/Modal/Modal';
 
@@ -45,7 +52,7 @@ export default function WalletPage() {
       // Mock payment simulation
       await api.post('/payments/webhooks/mock', {
         amountMinor: 1000000, // 10 000 KZT
-        idempotencyKey: `topup-${Date.now()}`
+        idempotencyKey: `topup-${Date.now()}`,
       });
       await refreshUser(); // Update balance in context
       await fetchTransactions(); // Refresh list
@@ -76,17 +83,45 @@ export default function WalletPage() {
   return (
     <div>
       <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '2rem' }}>Кошелек</h1>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem', alignItems: 'start' }}>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 2fr',
+          gap: '2rem',
+          alignItems: 'start',
+        }}
+      >
         {/* Balance Card */}
-        <div style={{ backgroundColor: 'var(--bg-elevated)', padding: '2rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div
+          style={{
+            backgroundColor: 'var(--bg-elevated)',
+            padding: '2rem',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.5rem',
+          }}
+        >
           <div>
-            <h2 style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Доступный баланс</h2>
-            <div style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            <h2
+              style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}
+            >
+              Доступный баланс
+            </h2>
+            <div
+              style={{
+                fontSize: '3rem',
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+              }}
+            >
               {formatMoney(user?.wallet?.availableBalanceMinor || 0)}
             </div>
           </div>
-          
+
           <Button onClick={handleTopUp} isLoading={isToppingUp} size="lg" style={{ width: '100%' }}>
             Пополнить (Тест 10 000 ₸)
           </Button>
@@ -97,8 +132,10 @@ export default function WalletPage() {
 
         {/* Transactions List */}
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>История транзакций</h2>
-          
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+            История транзакций
+          </h2>
+
           {isLoading ? (
             <p>Загрузка...</p>
           ) : transactions.length === 0 ? (
@@ -113,14 +150,17 @@ export default function WalletPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map(tx => (
+                {transactions.map((tx) => (
                   <TableRow key={tx.id}>
                     <TableCell style={{ color: 'var(--text-secondary)' }}>
-                      {new Date(tx.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(tx.createdAt).toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </TableCell>
-                    <TableCell>
-                      {getTxTypeLabel(tx.type)}
-                    </TableCell>
+                    <TableCell>{getTxTypeLabel(tx.type)}</TableCell>
                     <TableCell>
                       {tx.direction === 'CREDIT' ? (
                         <Badge variant="success">+{formatMoney(tx.amountMinor)}</Badge>
@@ -140,10 +180,13 @@ export default function WalletPage() {
 
       <Modal
         isOpen={modalState.isOpen}
-        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setModalState((prev) => ({ ...prev, isOpen: false }))}
         title={modalState.title}
         footer={
-          <Button variant="primary" onClick={() => setModalState(prev => ({ ...prev, isOpen: false }))}>
+          <Button
+            variant="primary"
+            onClick={() => setModalState((prev) => ({ ...prev, isOpen: false }))}
+          >
             ОК
           </Button>
         }

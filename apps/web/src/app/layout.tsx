@@ -1,17 +1,18 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
 
 const inter = Inter({
-  subsets: ["latin", "cyrillic"],
-  variable: "--font-inter",
+  subsets: ['latin', 'cyrillic'],
+  variable: '--font-inter',
 });
 
-import { AuthProvider } from "@/components/providers/AuthProvider";
+import { AuthProvider } from '@/components/providers/AuthProvider';
+import { ChatProvider } from '@/contexts/ChatContext';
 
 export const metadata: Metadata = {
-  title: "InTender - Поиск поставщиков",
-  description: "Закрытые коммерческие предложения для тендерщиков.",
+  title: 'InTender - Поиск поставщиков',
+  description: 'Закрытые коммерческие предложения для тендерщиков.',
 };
 
 export default function RootLayout({
@@ -23,7 +24,7 @@ export default function RootLayout({
     <html lang="ru" className={inter.variable}>
       <body>
         <AuthProvider>
-          {children}
+          <ChatProvider>{children}</ChatProvider>
         </AuthProvider>
       </body>
     </html>

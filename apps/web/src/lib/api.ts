@@ -55,7 +55,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw new ApiError(
       errorData?.message || response.statusText || 'Unknown API Error',
       response.status,
-      errorData
+      errorData,
     );
   }
 
@@ -69,7 +69,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const api = {
-  get: <T>(endpoint: string, options?: RequestInit) => request<T>(endpoint, { ...options, method: 'GET' }),
+  get: <T>(endpoint: string, options?: RequestInit) =>
+    request<T>(endpoint, { ...options, method: 'GET' }),
   post: <T>(endpoint: string, body?: any, options?: RequestInit) =>
     request<T>(endpoint, {
       ...options,
@@ -82,5 +83,12 @@ export const api = {
       method: 'PUT',
       body: body instanceof FormData ? body : JSON.stringify(body),
     }),
-  delete: <T>(endpoint: string, options?: RequestInit) => request<T>(endpoint, { ...options, method: 'DELETE' }),
+  patch: <T>(endpoint: string, body?: any, options?: RequestInit) =>
+    request<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    }),
+  delete: <T>(endpoint: string, options?: RequestInit) =>
+    request<T>(endpoint, { ...options, method: 'DELETE' }),
 };

@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { api } from "@/lib/api";
-import { useRouter, usePathname } from "next/navigation";
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { api } from '@/lib/api';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface User {
   id: string;
   email: string;
-  role: "BUYER" | "SUPPLIER" | "ADMIN";
+  role: 'BUYER' | 'SUPPLIER' | 'ADMIN';
   organizationId?: string;
   wallet?: {
     availableBalanceMinor: number;
@@ -32,19 +32,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = async () => {
     try {
-      const data = await api.get<User>("/auth/me");
+      const data = await api.get<User>('/auth/me');
       setUser(data);
     } catch (error) {
-      console.error("Failed to fetch user", error);
+      console.error('Failed to fetch user', error);
       setUser(null);
-      localStorage.removeItem("access_token");
+      localStorage.removeItem('access_token');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem('access_token');
     if (token) {
       fetchUser();
     } else {
@@ -53,25 +53,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleUnauthorized = () => {
       setUser(null);
-      if (pathname !== "/login" && pathname !== "/register" && pathname !== "/") {
-        router.push("/login");
+      if (pathname !== '/login' && pathname !== '/register' && pathname !== '/') {
+        router.push('/login');
       }
     };
 
-    window.addEventListener("auth:unauthorized", handleUnauthorized);
-    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, [pathname, router]);
 
   const login = (token: string, userData: User) => {
-    localStorage.setItem("access_token", token);
+    localStorage.setItem('access_token', token);
     setUser(userData);
-    router.push("/dashboard");
+    router.push('/dashboard');
   };
 
   const logout = () => {
-    localStorage.removeItem("access_token");
+    localStorage.removeItem('access_token');
     setUser(null);
-    router.push("/login");
+    router.push('/login');
   };
 
   const refreshUser = async () => {
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

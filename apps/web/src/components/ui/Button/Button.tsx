@@ -8,7 +8,10 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
+  (
+    { className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props },
+    ref,
+  ) => {
     const rootClass = `${styles.btn} ${styles[variant]} ${styles[size]} ${className || ''}`;
 
     return (
@@ -17,6 +20,6 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         <span className={isLoading ? styles.hiddenContent : ''}>{children}</span>
       </button>
     );
-  }
+  },
 );
 Button.displayName = 'Button';

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletsService } from '../wallets/wallets.service';
 import { AuditService } from '../audit/audit.service';
@@ -11,7 +16,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly walletsService: WalletsService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
   ) {}
 
   async getComplaints(skip = 0, take = 20) {
@@ -59,8 +64,13 @@ export class AdminService {
         'RESOLVE_COMPLAINT',
         'COMPLAINT',
         complaintId,
-        { resolution: dto.resolution, status: dto.status, refund: dto.refundAmountMinor, blocked: dto.blockTargetUserStatus },
-        tx
+        {
+          resolution: dto.resolution,
+          status: dto.status,
+          refund: dto.refundAmountMinor,
+          blocked: dto.blockTargetUserStatus,
+        },
+        tx,
       );
 
       return updatedComplaint;
@@ -74,7 +84,7 @@ export class AdminService {
           WalletTransactionType.REFUND,
           dto.idempotencyKey,
           complaint.id,
-          executeResolution
+          executeResolution,
         );
       } else {
         await this.prisma.$transaction(executeResolution);
@@ -87,7 +97,13 @@ export class AdminService {
     }
   }
 
-  async issueRefund(adminId: string, userId: string, amountMinor: number, idempotencyKey: string, reason: string) {
+  async issueRefund(
+    adminId: string,
+    userId: string,
+    amountMinor: number,
+    idempotencyKey: string,
+    reason: string,
+  ) {
     await this.walletsService.charge(
       userId,
       amountMinor,
@@ -101,9 +117,9 @@ export class AdminService {
           'USER',
           userId,
           { amountMinor, reason, idempotencyKey },
-          tx
+          tx,
         );
-      }
+      },
     );
     return { success: true };
   }
@@ -124,7 +140,7 @@ export class AdminService {
         'RATING',
         ratingId,
         { authorId: rating.authorUserId, targetId: rating.targetUserId, score: rating.score },
-        tx
+        tx,
       );
     });
 

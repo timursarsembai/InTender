@@ -9,7 +9,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, id, ...props }, ref) => {
     const inputId = id || React.useId();
-    
+
     return (
       <div className={`${styles.wrapper} ${className || ''}`}>
         {label && (
@@ -26,6 +26,6 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {error && <span className={styles.errorText}>{error}</span>}
       </div>
     );
-  }
+  },
 );
 Input.displayName = 'Input';

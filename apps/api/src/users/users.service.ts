@@ -17,10 +17,10 @@ export class UsersService {
       where: { id },
       include: {
         organization: {
-          select: { id: true }
+          select: { id: true },
         },
-        wallet: true
-      }
+        wallet: true,
+      },
     });
 
     if (!user) return null;

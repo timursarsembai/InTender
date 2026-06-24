@@ -1,4 +1,10 @@
-import { Injectable, ConflictException, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  BadRequestException,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletTransactionType, TransactionDirection, Prisma } from '@prisma/client';
 import { ErrorCode } from '@intender/shared';
@@ -41,7 +47,7 @@ export class WalletsService {
       amountMinor,
       TransactionDirection.CREDIT,
       WalletTransactionType.TOP_UP,
-      idempotencyKey
+      idempotencyKey,
     );
   }
 
@@ -51,7 +57,7 @@ export class WalletsService {
     type: WalletTransactionType,
     idempotencyKey: string,
     referenceId?: string,
-    action?: (tx: Prisma.TransactionClient) => Promise<void>
+    action?: (tx: Prisma.TransactionClient) => Promise<void>,
   ) {
     return this.executeWalletMutation(
       userId,
@@ -61,7 +67,7 @@ export class WalletsService {
       idempotencyKey,
       referenceId,
       3,
-      action
+      action,
     );
   }
 
@@ -76,13 +82,16 @@ export class WalletsService {
     idempotencyKey: string,
     referenceId?: string,
     retries = 3,
-    action?: (tx: Prisma.TransactionClient) => Promise<void>
+    action?: (tx: Prisma.TransactionClient) => Promise<void>,
   ): Promise<any> {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const wallet = await this.getWallet(userId);
 
-        if (direction === TransactionDirection.DEBIT && wallet.availableBalanceMinor < amountMinor) {
+        if (
+          direction === TransactionDirection.DEBIT &&
+          wallet.availableBalanceMinor < amountMinor
+        ) {
           throw new BadRequestException({
             message: 'Недостаточно средств',
             code: ErrorCode.INSUFFICIENT_BALANCE,
@@ -144,7 +153,9 @@ export class WalletsService {
         }
 
         if ((error as any).message === 'OCC_CONFLICT') {
-          this.logger.warn(`OCC Conflict on wallet mutation for user ${userId}, attempt ${attempt}`);
+          this.logger.warn(
+            `OCC Conflict on wallet mutation for user ${userId}, attempt ${attempt}`,
+          );
           if (attempt === retries) {
             throw new ConflictException({
               message: 'Сервис перегружен, попробуйте еще раз',

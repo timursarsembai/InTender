@@ -24,16 +24,18 @@ export default function Home() {
           Умный поиск <span className="text-gradient">поставщиков</span> для вашего бизнеса
         </h1>
         <p className={styles.subtitle}>
-          InTender — это закрытая B2B-платформа, которая соединяет закупщиков с надежными поставщиками. 
-          Загружайте спецификации, получайте предложения и выбирайте лучшие условия.
+          InTender — это закрытая B2B-платформа, которая соединяет закупщиков с надежными
+          поставщиками. Загружайте спецификации, получайте предложения и выбирайте лучшие условия.
         </p>
         <div className={styles.cta}>
           <Link href="/register">
-            <Button size="lg" variant="primary">Начать работу бесплатно</Button>
+            <Button size="lg" variant="primary">
+              Начать работу бесплатно
+            </Button>
           </Link>
         </div>
       </section>
-      
+
       <div className={styles.bgGlow}></div>
     </main>
   );

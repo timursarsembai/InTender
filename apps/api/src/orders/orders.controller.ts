@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -21,13 +31,10 @@ export class OrdersController {
   }
 
   @Get('orders')
-  getPublishedOrders(
-    @Query('skip') skip?: string,
-    @Query('take') take?: string
-  ) {
+  getPublishedOrders(@Query('skip') skip?: string, @Query('take') take?: string) {
     return this.ordersService.getPublishedOrders(
       skip ? parseInt(skip, 10) : 0,
-      take ? parseInt(take, 10) : 20
+      take ? parseInt(take, 10) : 20,
     );
   }
 
@@ -46,22 +53,14 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.BUYER)
   @Patch('orders/:id')
-  updateDraft(
-    @CurrentUser() user: any,
-    @Param('id') id: string,
-    @Body() dto: UpdateOrderDto
-  ) {
+  updateDraft(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateOrderDto) {
     return this.ordersService.updateDraft(user.id, id, dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.BUYER)
   @Post('orders/:id/publish')
-  publishOrder(
-    @CurrentUser() user: any,
-    @Param('id') id: string,
-    @Body() dto: PublishOrderDto
-  ) {
+  publishOrder(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: PublishOrderDto) {
     return this.ordersService.publish(user.id, id, dto.idempotencyKey);
   }
 
@@ -70,6 +69,13 @@ export class OrdersController {
   @Post('orders/:id/cancel')
   cancelOrder(@CurrentUser() user: any, @Param('id') id: string) {
     return this.ordersService.cancel(user.id, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.BUYER)
+  @Delete('orders/:id')
+  deleteOrder(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.ordersService.deleteOrder(user.id, id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

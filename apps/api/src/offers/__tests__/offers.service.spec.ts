@@ -3,7 +3,12 @@ import { OffersService } from '../offers.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WalletsService } from '../../wallets/wallets.service';
 import { OrderStatus, OfferStatus, Prisma } from '@prisma/client';
-import { BadRequestException, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+} from '@nestjs/common';
 import { ErrorCode } from '@intender/shared';
 
 describe('OffersService', () => {
@@ -48,36 +53,53 @@ describe('OffersService', () => {
 
   describe('createOffer', () => {
     it('should throw BadRequest if order not PUBLISHED', async () => {
-      vi.mocked(prismaService.order.findUnique).mockResolvedValue({ status: OrderStatus.DRAFT } as any);
-      await expect(service.createOffer('s-1', 'o-1', {} as any)).rejects.toThrow(BadRequestException);
+      vi.mocked(prismaService.order.findUnique).mockResolvedValue({
+        status: OrderStatus.DRAFT,
+      } as any);
+      await expect(service.createOffer('s-1', 'o-1', {} as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw Forbidden if user is not organization', async () => {
-      vi.mocked(prismaService.order.findUnique).mockResolvedValue({ status: OrderStatus.PUBLISHED } as any);
+      vi.mocked(prismaService.order.findUnique).mockResolvedValue({
+        status: OrderStatus.PUBLISHED,
+      } as any);
       vi.mocked(prismaService.user.findUnique).mockResolvedValue({ organization: null } as any);
-      await expect(service.createOffer('s-1', 'o-1', {} as any)).rejects.toThrow(ForbiddenException);
+      await expect(service.createOffer('s-1', 'o-1', {} as any)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should charge 50 and create offer', async () => {
-      vi.mocked(prismaService.order.findUnique).mockResolvedValue({ status: OrderStatus.PUBLISHED } as any);
-      vi.mocked(prismaService.user.findUnique).mockResolvedValue({ organization: { id: 'org-1' } } as any);
+      vi.mocked(prismaService.order.findUnique).mockResolvedValue({
+        status: OrderStatus.PUBLISHED,
+      } as any);
+      vi.mocked(prismaService.user.findUnique).mockResolvedValue({
+        organization: { id: 'org-1' },
+      } as any);
 
-      vi.mocked(walletsService.charge).mockImplementation(async (userId, amount, type, key, refId, action) => {
-        if (action) {
-          const txMock = {
-            offer: {
-              create: vi.fn().mockResolvedValue({ id: 'offer-1', versions: [{ id: 'v-1' }] }),
-              update: vi.fn(),
-            },
-          };
-          await action(txMock as any);
-        }
-        return { id: 'tx-1' };
-      });
+      vi.mocked(walletsService.charge).mockImplementation(
+        async (userId, amount, type, key, refId, action) => {
+          if (action) {
+            const txMock = {
+              offer: {
+                create: vi.fn().mockResolvedValue({ id: 'offer-1', versions: [{ id: 'v-1' }] }),
+                update: vi.fn(),
+              },
+            };
+            await action(txMock as any);
+          }
+          return { id: 'tx-1' };
+        },
+      );
 
       vi.mocked(prismaService.offer.findUnique).mockResolvedValue({ id: 'offer-1' } as any);
 
-      const result = await service.createOffer('s-1', 'o-1', { idempotencyKey: 'key', confirmations: {} } as any);
+      const result = await service.createOffer('s-1', 'o-1', {
+        idempotencyKey: 'key',
+        confirmations: {},
+      } as any);
       expect(walletsService.charge).toHaveBeenCalled();
       expect(result).toBeDefined();
     });

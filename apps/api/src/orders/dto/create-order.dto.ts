@@ -1,4 +1,15 @@
-import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, IsEnum, IsBoolean, IsDateString, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  Min,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  IsDateString,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { LogisticsOption, VatOption, FileVisibility } from '@prisma/client';
 import { Type } from 'class-transformer';
 
@@ -37,8 +48,28 @@ export class CreateOrderDto {
   brandModel?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Поле Адрес доставки не должно быть пустым' })
   deliveryAddress!: string;
+
+  @IsString()
+  @IsOptional()
+  deliveryRegion?: string;
+
+  @IsString()
+  @IsOptional()
+  deliveryDistrict?: string;
+
+  @IsString()
+  @IsOptional()
+  deliveryCity?: string;
+
+  @IsNumber()
+  @IsOptional()
+  deliveryLat?: number;
+
+  @IsNumber()
+  @IsOptional()
+  deliveryLng?: number;
 
   @IsString()
   @IsOptional()

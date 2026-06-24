@@ -1,7 +1,19 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletsService } from '../wallets/wallets.service';
-import { OrderStatus, OfferStatus, WalletTransactionType, Prisma, ContactDisclosureReason } from '@prisma/client';
+import {
+  OrderStatus,
+  OfferStatus,
+  WalletTransactionType,
+  Prisma,
+  ContactDisclosureReason,
+} from '@prisma/client';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { UpdateOfferDto } from './dto/update-offer.dto';
 import { ErrorCode } from '@intender/shared';
@@ -10,7 +22,7 @@ import { ErrorCode } from '@intender/shared';
 export class OffersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly walletsService: WalletsService
+    private readonly walletsService: WalletsService,
   ) {}
 
   async createOffer(supplierId: string, orderId: string, dto: CreateOfferDto) {
@@ -61,7 +73,13 @@ export class OffersService {
                   deliveryCostMinor: dto.deliveryCostMinor,
                   grandTotalMinor: dto.grandTotalMinor,
                   deliveryDays: dto.deliveryDays,
+                  departureRegion: dto.departureRegion,
+                  departureDistrict: dto.departureDistrict,
+                  departureCity: dto.departureCity,
+                  departureLat: dto.departureLat,
+                  departureLng: dto.departureLng,
                   brandModel: dto.brandModel,
+                  comment: dto.comment,
                   vatStatus: dto.vatStatus,
                   paymentTerms: dto.paymentTerms,
                   confirmations: dto.confirmations as any,
@@ -84,10 +102,10 @@ export class OffersService {
               type: 'OFFER_RECEIVED',
               title: 'Новый отклик',
               message: `На ваш заказ "${order.title}" поступил новый отклик!`,
-              payload: { orderId: order.id, offerId: offer.id }
-            }
+              payload: { orderId: order.id, offerId: offer.id },
+            },
           });
-        }
+        },
       );
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -96,7 +114,10 @@ export class OffersService {
           code: ErrorCode.OFFER_ALREADY_EXISTS,
         });
       }
-      if (error instanceof ConflictException && (error.getResponse() as any).code === ErrorCode.IDEMPOTENCY_CONFLICT) {
+      if (
+        error instanceof ConflictException &&
+        (error.getResponse() as any).code === ErrorCode.IDEMPOTENCY_CONFLICT
+      ) {
         const existingOffer = await this.prisma.offer.findUnique({
           where: { orderId_supplierOrganizationId: { orderId, supplierOrganizationId } },
           include: { versions: { orderBy: { versionNumber: 'desc' }, take: 1 } },
@@ -117,7 +138,10 @@ export class OffersService {
   }
 
   async updateOffer(supplierId: string, offerId: string, dto: UpdateOfferDto) {
-    const supplier = await this.prisma.user.findUnique({ where: { id: supplierId }, include: { organization: true } });
+    const supplier = await this.prisma.user.findUnique({
+      where: { id: supplierId },
+      include: { organization: true },
+    });
     const offer = await this.prisma.offer.findUnique({
       where: { id: offerId },
       include: {
@@ -130,7 +154,10 @@ export class OffersService {
       throw new ForbiddenException({ message: 'Нет прав' });
     }
     if (offer.status !== OfferStatus.ACTIVE) {
-      throw new BadRequestException({ message: 'Нельзя редактировать неактивный отклик', code: ErrorCode.VALIDATION_ERROR });
+      throw new BadRequestException({
+        message: 'Нельзя редактировать неактивный отклик',
+        code: ErrorCode.VALIDATION_ERROR,
+      });
     }
 
     const currentVersion = offer.versions[0];
@@ -150,7 +177,22 @@ export class OffersService {
           deliveryCostMinor: dto.deliveryCostMinor ?? currentVersion.deliveryCostMinor,
           grandTotalMinor: dto.grandTotalMinor ?? currentVersion.grandTotalMinor,
           deliveryDays: dto.deliveryDays ?? currentVersion.deliveryDays,
+          departureRegion:
+            dto.departureRegion !== undefined
+              ? dto.departureRegion
+              : currentVersion.departureRegion,
+          departureDistrict:
+            dto.departureDistrict !== undefined
+              ? dto.departureDistrict
+              : currentVersion.departureDistrict,
+          departureCity:
+            dto.departureCity !== undefined ? dto.departureCity : currentVersion.departureCity,
+          departureLat:
+            dto.departureLat !== undefined ? dto.departureLat : currentVersion.departureLat,
+          departureLng:
+            dto.departureLng !== undefined ? dto.departureLng : currentVersion.departureLng,
           brandModel: dto.brandModel ?? currentVersion.brandModel,
+          comment: dto.comment ?? currentVersion.comment,
           vatStatus: dto.vatStatus ?? currentVersion.vatStatus,
           paymentTerms: dto.paymentTerms ?? currentVersion.paymentTerms,
           confirmations: (dto.confirmations ?? currentVersion.confirmations) as any,
@@ -168,7 +210,10 @@ export class OffersService {
   }
 
   async withdrawOffer(supplierId: string, offerId: string) {
-    const supplier = await this.prisma.user.findUnique({ where: { id: supplierId }, include: { organization: true } });
+    const supplier = await this.prisma.user.findUnique({
+      where: { id: supplierId },
+      include: { organization: true },
+    });
     const offer = await this.prisma.offer.findUnique({ where: { id: offerId } });
 
     if (!offer || offer.supplierOrganizationId !== supplier?.organization?.id) {
@@ -176,7 +221,10 @@ export class OffersService {
     }
 
     if (offer.status !== OfferStatus.ACTIVE) {
-      throw new BadRequestException({ message: 'Нельзя отозвать неактивный отклик', code: ErrorCode.VALIDATION_ERROR });
+      throw new BadRequestException({
+        message: 'Нельзя отозвать неактивный отклик',
+        code: ErrorCode.VALIDATION_ERROR,
+      });
     }
 
     return this.prisma.offer.update({
@@ -205,8 +253,15 @@ export class OffersService {
       throw new ForbiddenException({ message: 'Нет прав', code: ErrorCode.FORBIDDEN });
     }
 
-    if (order.status !== OrderStatus.PUBLISHED || offer.status !== OfferStatus.ACTIVE || !offer.versions[0]) {
-      throw new BadRequestException({ message: 'Нельзя принять отклик', code: ErrorCode.VALIDATION_ERROR });
+    if (
+      order.status !== OrderStatus.PUBLISHED ||
+      offer.status !== OfferStatus.ACTIVE ||
+      !offer.versions[0]
+    ) {
+      throw new BadRequestException({
+        message: 'Нельзя принять отклик',
+        code: ErrorCode.VALIDATION_ERROR,
+      });
     }
 
     try {
@@ -222,7 +277,10 @@ export class OffersService {
         });
 
         if (orderUpdate.count === 0) {
-          throw new ConflictException({ message: 'Заказ уже закрыт', code: ErrorCode.ORDER_ALREADY_CLOSED });
+          throw new ConflictException({
+            message: 'Заказ уже закрыт',
+            code: ErrorCode.ORDER_ALREADY_CLOSED,
+          });
         }
 
         await tx.offer.update({
@@ -271,7 +329,10 @@ export class OffersService {
       return result;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictException({ message: 'Сделка уже оформлена', code: ErrorCode.IDEMPOTENCY_CONFLICT });
+        throw new ConflictException({
+          message: 'Сделка уже оформлена',
+          code: ErrorCode.IDEMPOTENCY_CONFLICT,
+        });
       }
       throw error;
     }
@@ -293,7 +354,10 @@ export class OffersService {
   }
 
   async getMyOffers(supplierUserId: string) {
-    const supplier = await this.prisma.user.findUnique({ where: { id: supplierUserId }, include: { organization: true } });
+    const supplier = await this.prisma.user.findUnique({
+      where: { id: supplierUserId },
+      include: { organization: true },
+    });
     if (!supplier?.organization) return [];
 
     return this.prisma.offer.findMany({

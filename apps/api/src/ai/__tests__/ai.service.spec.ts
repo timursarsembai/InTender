@@ -41,33 +41,48 @@ describe('AiService', () => {
     });
 
     it('should throw Forbidden if user does not own file', async () => {
-      vi.mocked(prismaService.fileObject.findUnique).mockResolvedValue({ ownerUserId: 'u-2' } as any);
+      vi.mocked(prismaService.fileObject.findUnique).mockResolvedValue({
+        ownerUserId: 'u-2',
+      } as any);
       await expect(service.createJob('u-1', 'f-1', 'key')).rejects.toThrow(ForbiddenException);
     });
 
     it('should charge 1000 KZT and create job in transaction', async () => {
-      vi.mocked(prismaService.fileObject.findUnique).mockResolvedValue({ ownerUserId: 'u-1' } as any);
+      vi.mocked(prismaService.fileObject.findUnique).mockResolvedValue({
+        ownerUserId: 'u-1',
+      } as any);
 
-      vi.mocked(walletsService.charge).mockImplementation(async (userId, amount, type, key, refId, action) => {
-        if (action) {
-          const txMock = {
-            aiSpecJob: {
-              create: vi.fn().mockResolvedValue({ id: 'job-1' }),
-            },
-          };
-          await action(txMock as any);
-        }
-        return { id: 'tx-1' };
-      });
+      vi.mocked(walletsService.charge).mockImplementation(
+        async (userId, amount, type, key, refId, action) => {
+          if (action) {
+            const txMock = {
+              aiSpecJob: {
+                create: vi.fn().mockResolvedValue({ id: 'job-1' }),
+              },
+            };
+            await action(txMock as any);
+          }
+          return { id: 'tx-1' };
+        },
+      );
 
       const result = await service.createJob('u-1', 'f-1', 'key');
-      expect(walletsService.charge).toHaveBeenCalledWith('u-1', 100000, WalletTransactionType.AI_SPEC_ANALYSIS, 'key', 'f-1', expect.any(Function));
+      expect(walletsService.charge).toHaveBeenCalledWith(
+        'u-1',
+        100000,
+        WalletTransactionType.AI_SPEC_ANALYSIS,
+        'key',
+        'f-1',
+        expect.any(Function),
+      );
       expect(result).toBeDefined();
       expect((service as any).processJobAsync).toHaveBeenCalled();
     });
 
     it('should return existing job on idempotency conflict', async () => {
-      vi.mocked(prismaService.fileObject.findUnique).mockResolvedValue({ ownerUserId: 'u-1' } as any);
+      vi.mocked(prismaService.fileObject.findUnique).mockResolvedValue({
+        ownerUserId: 'u-1',
+      } as any);
 
       vi.mocked(walletsService.charge).mockImplementation(async () => {
         throw new ConflictException({ code: ErrorCode.IDEMPOTENCY_CONFLICT });
@@ -92,7 +107,10 @@ describe('AiService', () => {
     });
 
     it('should return job if user is owner', async () => {
-      vi.mocked(prismaService.aiSpecJob.findUnique).mockResolvedValue({ userId: 'u-1', id: 'job-1' } as any);
+      vi.mocked(prismaService.aiSpecJob.findUnique).mockResolvedValue({
+        userId: 'u-1',
+        id: 'job-1',
+      } as any);
       const result = await service.getJob('u-1', 'job-1');
       expect(result.id).toBe('job-1');
     });

@@ -12,12 +12,12 @@ export class NotificationsController {
   getMyNotifications(
     @CurrentUser() user: any,
     @Query('skip') skip?: string,
-    @Query('take') take?: string
+    @Query('take') take?: string,
   ) {
     return this.notificationsService.getMyNotifications(
       user.id,
       skip ? parseInt(skip, 10) : 0,
-      take ? parseInt(take, 10) : 20
+      take ? parseInt(take, 10) : 20,
     );
   }
 

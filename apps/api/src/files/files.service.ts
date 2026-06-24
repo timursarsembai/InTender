@@ -25,7 +25,12 @@ export class FilesService {
     });
   }
 
-  async createUploadIntent(userId: string, originalName: string, mimeType: string, sizeBytes: number) {
+  async createUploadIntent(
+    userId: string,
+    originalName: string,
+    mimeType: string,
+    sizeBytes: number,
+  ) {
     const ext = path.extname(originalName);
     const storageKey = `${randomUUID()}${ext}`;
 
@@ -111,7 +116,10 @@ export class FilesService {
     // Владелец всегда имеет доступ
     if (file.ownerUserId === userId) return true;
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { organization: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { organization: true },
+    });
     const isSupplier = !!user?.organization;
 
     // Если файл привязан к заказам, проверяем публичность
@@ -119,7 +127,13 @@ export class FilesService {
       const order = attachment.order;
 
       // Если заказ опубликован или закрыт
-      if ([OrderStatus.PUBLISHED, OrderStatus.CLOSED_ACCEPTED, OrderStatus.CLOSED_WITHOUT_SELECTION].includes(order.status)) {
+      if (
+        [
+          OrderStatus.PUBLISHED,
+          OrderStatus.CLOSED_ACCEPTED,
+          OrderStatus.CLOSED_WITHOUT_SELECTION,
+        ].includes(order.status)
+      ) {
         // Если видимость для поставщиков и текущий пользователь - поставщик
         if (attachment.visibility === FileVisibility.SUPPLIERS_VISIBLE && isSupplier) {
           return true;

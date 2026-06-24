@@ -1,6 +1,13 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.TIYN_PER_TENGE = exports.DEFAULT_CURRENCY = exports.MAX_FILE_SIZE_BYTES = exports.MIN_TOPUP_TIYN = exports.AI_PARSE_COST_TIYN = exports.OFFER_COST_TIYN = exports.ORDER_PUBLISH_COST_TIYN = void 0;
+'use strict';
+Object.defineProperty(exports, '__esModule', { value: true });
+exports.TIYN_PER_TENGE =
+  exports.DEFAULT_CURRENCY =
+  exports.MAX_FILE_SIZE_BYTES =
+  exports.MIN_TOPUP_TIYN =
+  exports.AI_PARSE_COST_TIYN =
+  exports.OFFER_COST_TIYN =
+  exports.ORDER_PUBLISH_COST_TIYN =
+    void 0;
 /** Стоимость публикации заказа в тиынах (50 ₸) */
 exports.ORDER_PUBLISH_COST_TIYN = 5_000;
 /** Стоимость отклика поставщика в тиынах (50 ₸) */

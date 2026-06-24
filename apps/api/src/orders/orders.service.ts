@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletsService } from '../wallets/wallets.service';
 import { OrderStatus, Prisma, WalletTransactionType } from '@prisma/client';
@@ -10,7 +16,7 @@ import { ErrorCode } from '@intender/shared';
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly walletsService: WalletsService
+    private readonly walletsService: WalletsService,
   ) {}
 
   async createDraft(buyerId: string, dto: CreateOrderDto) {
@@ -20,12 +26,14 @@ export class OrdersService {
         ...orderData,
         buyerId,
         status: OrderStatus.DRAFT,
-        attachments: attachments ? {
-          create: attachments.map(a => ({
-            fileId: a.fileId,
-            visibility: a.visibility,
-          })),
-        } : undefined,
+        attachments: attachments
+          ? {
+              create: attachments.map((a) => ({
+                fileId: a.fileId,
+                visibility: a.visibility,
+              })),
+            }
+          : undefined,
       },
     });
   }
@@ -33,9 +41,10 @@ export class OrdersService {
   async updateDraft(buyerId: string, id: string, dto: UpdateOrderDto) {
     const order = await this.getOrderIfOwner(id, buyerId);
 
-    if (order.status !== OrderStatus.DRAFT) {
+    const editableStatuses: OrderStatus[] = [OrderStatus.DRAFT, OrderStatus.PUBLISHED];
+    if (!editableStatuses.includes(order.status)) {
       throw new BadRequestException({
-        message: 'Редактировать можно только черновик',
+        message: 'Редактировать можно только черновик или опубликованный заказ',
         code: ErrorCode.VALIDATION_ERROR,
       });
     }
@@ -53,12 +62,14 @@ export class OrdersService {
         data: {
           ...orderData,
           version: { increment: 1 },
-          attachments: attachments ? {
-            create: attachments.map(a => ({
-              fileId: a.fileId,
-              visibility: a.visibility,
-            })),
-          } : undefined,
+          attachments: attachments
+            ? {
+                create: attachments.map((a) => ({
+                  fileId: a.fileId,
+                  visibility: a.visibility,
+                })),
+              }
+            : undefined,
         },
       });
     });
@@ -110,11 +121,14 @@ export class OrdersService {
               code: 'CONCURRENCY_CONFLICT',
             });
           }
-        }
+        },
       );
     } catch (error) {
       // Проверка на дубликат idempotencyKey
-      if (error instanceof ConflictException && (error.getResponse() as any).code === ErrorCode.IDEMPOTENCY_CONFLICT) {
+      if (
+        error instanceof ConflictException &&
+        (error.getResponse() as any).code === ErrorCode.IDEMPOTENCY_CONFLICT
+      ) {
         // Проверяем, может быть статус уже PUBLISHED (например, прошлый запрос успешен, но клиент не получил ответ)
         const updatedOrder = await this.prisma.order.findUnique({ where: { id } });
         if (updatedOrder?.status === OrderStatus.PUBLISHED) {
@@ -147,6 +161,21 @@ export class OrdersService {
         version: { increment: 1 },
       },
     });
+  }
+
+  async deleteOrder(buyerId: string, id: string) {
+    const order = await this.getOrderIfOwner(id, buyerId);
+
+    if (order.status === OrderStatus.DRAFT) {
+      return this.prisma.order.delete({ where: { id } });
+    } else if (order.status === OrderStatus.PUBLISHED) {
+      return this.cancel(buyerId, id);
+    } else {
+      throw new BadRequestException({
+        message: 'Нельзя удалить заказ в текущем статусе',
+        code: ErrorCode.VALIDATION_ERROR,
+      });
+    }
   }
 
   async closeWithoutSelection(buyerId: string, id: string) {
@@ -231,22 +260,38 @@ export class OrdersService {
     const oldOrder = await this.getOrderIfOwner(id, buyerId);
 
     // Копируем поля в новый DRAFT
-    const { id: _, version: __, status: ___, createdAt, updatedAt, publishedAt, closedAt, acceptedOfferId, attachments, ...dataToCopy } = oldOrder as any;
+    const {
+      id: _,
+      version: __,
+      status: ___,
+      createdAt,
+      updatedAt,
+      publishedAt,
+      closedAt,
+      acceptedOfferId,
+      attachments,
+      ...dataToCopy
+    } = oldOrder as any;
 
     return this.prisma.order.create({
       data: {
         ...dataToCopy,
         buyerId,
         status: OrderStatus.DRAFT,
-        attachments: attachments ? {
-          create: attachments.map((a: any) => ({ fileId: a.fileId, visibility: a.visibility })),
-        } : undefined,
+        attachments: attachments
+          ? {
+              create: attachments.map((a: any) => ({ fileId: a.fileId, visibility: a.visibility })),
+            }
+          : undefined,
       },
     });
   }
 
   private async getOrderIfOwner(id: string, buyerId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id }, include: { attachments: true } });
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { attachments: true },
+    });
     if (!order) {
       throw new NotFoundException({
         message: 'Заказ не найден',
@@ -276,10 +321,7 @@ export class OrdersService {
     const disclosure = await this.prisma.contactDisclosure.findFirst({
       where: {
         orderId,
-        OR: [
-          { buyerUserId: userId },
-          { supplierUserId: userId },
-        ],
+        OR: [{ buyerUserId: userId }, { supplierUserId: userId }],
       },
     });
 
@@ -296,16 +338,19 @@ export class OrdersService {
     });
 
     if (!snapshot) {
-      throw new NotFoundException({ message: 'Снимок сделки не найден', code: ErrorCode.RESOURCE_NOT_FOUND });
+      throw new NotFoundException({
+        message: 'Снимок сделки не найден',
+        code: ErrorCode.RESOURCE_NOT_FOUND,
+      });
     }
 
-    const buyerOrg = await this.prisma.organization.findUnique({ 
+    const buyerOrg = await this.prisma.organization.findUnique({
       where: { id: snapshot.buyerOrganizationId },
-      include: { owner: true }
+      include: { owner: true },
     });
-    const supplierOrg = await this.prisma.organization.findUnique({ 
+    const supplierOrg = await this.prisma.organization.findUnique({
       where: { id: snapshot.supplierOrganizationId },
-      include: { owner: true }
+      include: { owner: true },
     });
 
     const buyerContact = (buyerOrg?.contacts as any) || snapshot.buyerContact || {};

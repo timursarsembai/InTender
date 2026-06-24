@@ -12,14 +12,14 @@ import styles from '../login/login.module.css';
 export default function RegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'BUYER' | 'SUPPLIER'>('BUYER');
   const [legalType, setLegalType] = useState<'TOO' | 'IP' | 'OTHER'>('TOO');
   const [legalName, setLegalName] = useState('');
   const [bin, setBin] = useState('');
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -37,12 +37,14 @@ export default function RegisterPage() {
         legalName,
         bin,
       });
-      
+
       login(response.access_token, response.user);
     } catch (err: any) {
       let errorMessage = err.message || 'Ошибка регистрации';
       if (Array.isArray(errorMessage)) {
-        errorMessage = errorMessage.map(e => typeof e === 'object' ? JSON.stringify(e) : String(e)).join(', ');
+        errorMessage = errorMessage
+          .map((e) => (typeof e === 'object' ? JSON.stringify(e) : String(e)))
+          .join(', ');
       }
       setError(errorMessage);
       setIsLoading(false);
@@ -53,7 +55,9 @@ export default function RegisterPage() {
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.header}>
-          <Link href="/" className={styles.logo}>InTender</Link>
+          <Link href="/" className={styles.logo}>
+            InTender
+          </Link>
           <h1 className={styles.title}>Регистрация</h1>
           <p className={styles.subtitle}>Создайте аккаунт, чтобы начать работу</p>
         </div>
@@ -62,35 +66,35 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-              <input 
-                type="radio" 
-                checked={role === 'BUYER'} 
-                onChange={() => setRole('BUYER')} 
-              />
-              Я закупщик
+            <label
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+            >
+              <input type="radio" checked={role === 'BUYER'} onChange={() => setRole('BUYER')} />Я
+              закупщик
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-              <input 
-                type="radio" 
-                checked={role === 'SUPPLIER'} 
-                onChange={() => setRole('SUPPLIER')} 
+            <label
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+            >
+              <input
+                type="radio"
+                checked={role === 'SUPPLIER'}
+                onChange={() => setRole('SUPPLIER')}
               />
               Я поставщик
             </label>
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
-             <select 
-               value={legalType} 
-               onChange={(e) => setLegalType(e.target.value as any)}
-               style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-             >
-               <option value="TOO">ТОО</option>
-               <option value="IP">ИП</option>
-               <option value="OTHER">Другое</option>
-             </select>
-             <Input
+            <select
+              value={legalType}
+              onChange={(e) => setLegalType(e.target.value as any)}
+              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+            >
+              <option value="TOO">ТОО</option>
+              <option value="IP">ИП</option>
+              <option value="OTHER">Другое</option>
+            </select>
+            <Input
               label=""
               type="text"
               value={legalName}
@@ -129,8 +133,13 @@ export default function RegisterPage() {
             required
             minLength={8}
           />
-          
-          <Button type="submit" variant="primary" isLoading={isLoading} className={styles.submitBtn}>
+
+          <Button
+            type="submit"
+            variant="primary"
+            isLoading={isLoading}
+            className={styles.submitBtn}
+          >
             Зарегистрироваться
           </Button>
         </form>

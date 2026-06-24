@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { OrderStatus, Prisma } from '@prisma/client';
@@ -30,8 +35,8 @@ export class RatingsService {
     // Проверяем, что автор и цель являются участниками сделки
     const isAuthorBuyer = order.buyerId === authorUserId;
     const isTargetBuyer = order.buyerId === dto.targetUserId;
-    
-    // Поставщик определяется из snapshot, но userId поставщика там не лежит напрямую в корне, 
+
+    // Поставщик определяется из snapshot, но userId поставщика там не лежит напрямую в корне,
     // он в supplierPublicProfile или мы можем получить его через acceptedOffer.
     // Для безопасности мы можем сделать запрос к ContactDisclosure
     const disclosure = await this.prisma.contactDisclosure.findUnique({
@@ -40,12 +45,14 @@ export class RatingsService {
           orderId: order.id,
           buyerUserId: order.buyerId,
           supplierUserId: isAuthorBuyer ? dto.targetUserId : authorUserId,
-        }
-      }
+        },
+      },
     });
 
     if (!disclosure) {
-      throw new ForbiddenException('Вы не являетесь участником этой сделки или контакты не были раскрыты');
+      throw new ForbiddenException(
+        'Вы не являетесь участником этой сделки или контакты не были раскрыты',
+      );
     }
 
     try {
@@ -75,9 +82,8 @@ export class RatingsService {
       },
     });
 
-    const averageScore = ratings.length > 0 
-      ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length 
-      : 0;
+    const averageScore =
+      ratings.length > 0 ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length : 0;
 
     return {
       averageScore,

@@ -13,10 +13,10 @@ export class AuditService {
     targetType: string,
     targetId: string,
     payload?: any,
-    tx?: any
+    tx?: any,
   ) {
     const prismaClient = tx || this.prisma;
-    
+
     try {
       await prismaClient.auditEvent.create({
         data: {

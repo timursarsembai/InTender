@@ -1,4 +1,14 @@
-import { IsString, IsNotEmpty, IsNumber, Min, IsOptional, IsEnum, IsBoolean, ValidateNested, IsObject } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  Min,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  ValidateNested,
+  IsObject,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { OfferVatStatus } from '@prisma/client';
 
@@ -40,7 +50,31 @@ export class CreateOfferDto {
 
   @IsString()
   @IsOptional()
+  departureRegion?: string;
+
+  @IsString()
+  @IsOptional()
+  departureDistrict?: string;
+
+  @IsString()
+  @IsOptional()
+  departureCity?: string;
+
+  @IsNumber()
+  @IsOptional()
+  departureLat?: number;
+
+  @IsNumber()
+  @IsOptional()
+  departureLng?: number;
+
+  @IsString()
+  @IsOptional()
   brandModel?: string;
+
+  @IsString()
+  @IsOptional()
+  comment?: string;
 
   @IsEnum(OfferVatStatus)
   vatStatus!: OfferVatStatus;

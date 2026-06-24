@@ -26,10 +26,16 @@ describe('AuthService', () => {
     } as any;
 
     prismaService = {
-      $transaction: vi.fn((cb) => cb({
-        user: { create: vi.fn().mockResolvedValue({ id: 'user-1', email: 'test@test.com', role: UserRole.BUYER }) },
-        organization: { create: vi.fn() },
-      })),
+      $transaction: vi.fn((cb) =>
+        cb({
+          user: {
+            create: vi
+              .fn()
+              .mockResolvedValue({ id: 'user-1', email: 'test@test.com', role: UserRole.BUYER }),
+          },
+          organization: { create: vi.fn() },
+        }),
+      ),
     } as any;
 
     service = new AuthService(usersService, jwtService, prismaService);
@@ -43,14 +49,16 @@ describe('AuthService', () => {
     it('should throw ConflictException if user exists', async () => {
       vi.mocked(usersService.findByEmail).mockResolvedValue({ id: '1' } as any);
 
-      await expect(service.register({
-        email: 'test@test.com',
-        password: 'password',
-        role: UserRole.BUYER,
-        legalType: OrganizationLegalType.TOO,
-        legalName: 'Test',
-        bin: '123456789012'
-      })).rejects.toThrow(ConflictException);
+      await expect(
+        service.register({
+          email: 'test@test.com',
+          password: 'password',
+          role: UserRole.BUYER,
+          legalType: OrganizationLegalType.TOO,
+          legalName: 'Test',
+          bin: '123456789012',
+        }),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('should create user and organization and return token', async () => {
@@ -62,7 +70,7 @@ describe('AuthService', () => {
         role: UserRole.BUYER,
         legalType: OrganizationLegalType.TOO,
         legalName: 'Test',
-        bin: '123456789012'
+        bin: '123456789012',
       });
 
       expect(prismaService.$transaction).toHaveBeenCalled();

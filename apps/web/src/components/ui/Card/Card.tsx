@@ -10,7 +10,7 @@ interface CardProps {
 
 export const Card = ({ children, className, style, onClick }: CardProps) => {
   return (
-    <div 
+    <div
       className={`${styles.card} ${onClick ? styles.clickable : ''} ${className || ''}`}
       style={style}
       onClick={onClick}

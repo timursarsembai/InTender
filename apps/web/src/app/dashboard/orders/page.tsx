@@ -14,7 +14,9 @@ export default function OrdersFeedPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELLED'>('ACTIVE');
+  const [activeTab, setActiveTab] = useState<'ACTIVE' | 'DRAFTS' | 'COMPLETED' | 'CANCELLED'>(
+    'ACTIVE',
+  );
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -49,16 +51,28 @@ export default function OrdersFeedPage() {
     return map[status] || status;
   };
 
-  const filteredOrders = user?.role === 'BUYER' ? orders.filter(order => {
-    if (activeTab === 'ACTIVE') return ['DRAFT', 'PUBLISHED'].includes(order.status);
-    if (activeTab === 'COMPLETED') return ['CLOSED_ACCEPTED', 'CLOSED_WITHOUT_SELECTION'].includes(order.status);
-    if (activeTab === 'CANCELLED') return order.status === 'CANCELLED';
-    return true;
-  }) : orders;
+  const filteredOrders =
+    user?.role === 'BUYER'
+      ? orders.filter((order) => {
+          if (activeTab === 'ACTIVE') return order.status === 'PUBLISHED';
+          if (activeTab === 'DRAFTS') return order.status === 'DRAFT';
+          if (activeTab === 'COMPLETED')
+            return ['CLOSED_ACCEPTED', 'CLOSED_WITHOUT_SELECTION'].includes(order.status);
+          if (activeTab === 'CANCELLED') return order.status === 'CANCELLED';
+          return true;
+        })
+      : orders;
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '2rem',
+        }}
+      >
         <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>
           {user?.role === 'BUYER' ? 'Мои заказы' : 'Лента заказов'}
         </h1>
@@ -70,22 +84,87 @@ export default function OrdersFeedPage() {
       </div>
 
       {user?.role === 'BUYER' && (
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '1rem',
+            marginBottom: '2rem',
+            borderBottom: '1px solid var(--border-color)',
+          }}
+        >
           <button
             onClick={() => setActiveTab('ACTIVE')}
-            style={{ padding: '0.5rem 1rem', borderBottom: activeTab === 'ACTIVE' ? '2px solid var(--accent-primary)' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', color: activeTab === 'ACTIVE' ? 'var(--accent-primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'ACTIVE' ? 600 : 400 }}
+            style={{
+              padding: '0.5rem 1rem',
+              borderBottom:
+                activeTab === 'ACTIVE'
+                  ? '2px solid var(--accent-primary)'
+                  : '2px solid transparent',
+              background: 'none',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              cursor: 'pointer',
+              color: activeTab === 'ACTIVE' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'ACTIVE' ? 600 : 400,
+            }}
           >
-            Активные
+            Актуальные
+          </button>
+          <button
+            onClick={() => setActiveTab('DRAFTS')}
+            style={{
+              padding: '0.5rem 1rem',
+              borderBottom:
+                activeTab === 'DRAFTS'
+                  ? '2px solid var(--accent-primary)'
+                  : '2px solid transparent',
+              background: 'none',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              cursor: 'pointer',
+              color: activeTab === 'DRAFTS' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'DRAFTS' ? 600 : 400,
+            }}
+          >
+            Черновики
           </button>
           <button
             onClick={() => setActiveTab('COMPLETED')}
-            style={{ padding: '0.5rem 1rem', borderBottom: activeTab === 'COMPLETED' ? '2px solid var(--accent-primary)' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', color: activeTab === 'COMPLETED' ? 'var(--accent-primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'COMPLETED' ? 600 : 400 }}
+            style={{
+              padding: '0.5rem 1rem',
+              borderBottom:
+                activeTab === 'COMPLETED'
+                  ? '2px solid var(--accent-primary)'
+                  : '2px solid transparent',
+              background: 'none',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              cursor: 'pointer',
+              color: activeTab === 'COMPLETED' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'COMPLETED' ? 600 : 400,
+            }}
           >
             Завершенные
           </button>
           <button
             onClick={() => setActiveTab('CANCELLED')}
-            style={{ padding: '0.5rem 1rem', borderBottom: activeTab === 'CANCELLED' ? '2px solid var(--accent-primary)' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', color: activeTab === 'CANCELLED' ? 'var(--accent-primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'CANCELLED' ? 600 : 400 }}
+            style={{
+              padding: '0.5rem 1rem',
+              borderBottom:
+                activeTab === 'CANCELLED'
+                  ? '2px solid var(--accent-primary)'
+                  : '2px solid transparent',
+              background: 'none',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              cursor: 'pointer',
+              color: activeTab === 'CANCELLED' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'CANCELLED' ? 600 : 400,
+            }}
           >
             Отмененные
           </button>
@@ -95,31 +174,82 @@ export default function OrdersFeedPage() {
       {isLoading ? (
         <p>Загрузка...</p>
       ) : filteredOrders.length === 0 ? (
-        <div style={{ padding: '3rem', textAlign: 'center', backgroundColor: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)' }}>
+        <div
+          style={{
+            padding: '3rem',
+            textAlign: 'center',
+            backgroundColor: 'var(--bg-elevated)',
+            borderRadius: 'var(--radius-lg)',
+          }}
+        >
           <p style={{ color: 'var(--text-muted)' }}>Заказов пока нет.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {filteredOrders.map((order) => (
-            <Card key={order.id} onClick={() => router.push(`/dashboard/orders/${order.id}`)} style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Card
+              key={order.id}
+              onClick={() => router.push(`/dashboard/orders/${order.id}`)}
+              style={{ cursor: 'pointer' }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                }}
+              >
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--accent-primary)' }}>
+                  <h3
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 600,
+                      marginBottom: '0.5rem',
+                      color: 'var(--accent-primary)',
+                    }}
+                  >
                     {order.title}
                   </h3>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                  <p
+                    style={{
+                      fontSize: '0.875rem',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '1rem',
+                    }}
+                  >
                     Объем: {order.quantity} {order.unit}
                   </p>
                 </div>
-                <Badge variant={order.status === 'PUBLISHED' ? 'success' : order.status === 'DRAFT' ? 'warning' : 'neutral'}>
+                <Badge
+                  variant={
+                    order.status === 'PUBLISHED'
+                      ? 'success'
+                      : order.status === 'DRAFT'
+                        ? 'warning'
+                        : 'neutral'
+                  }
+                >
                   {translateStatus(order.status)}
                 </Badge>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-secondary)',
+                  borderTop: '1px solid var(--border-color)',
+                  paddingTop: '1rem',
+                }}
+              >
                 <div>
-                  <strong>Логистика: </strong> 
-                  {order.logistics === 'BUYER_PICKUP' ? 'Самовывоз' : order.logistics === 'SUPPLIER_DELIVERY' ? 'Доставка поставщика' : 'Любая'}
+                  <strong>Логистика: </strong>
+                  {order.logistics === 'BUYER_PICKUP'
+                    ? 'Самовывоз'
+                    : order.logistics === 'SUPPLIER_DELIVERY'
+                      ? 'Доставка поставщика'
+                      : 'Любая'}
                 </div>
                 <div>
                   <strong>Желаемая цена: </strong> {formatMoney(order.desiredPriceMinor)}

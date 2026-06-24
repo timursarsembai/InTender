@@ -16,7 +16,7 @@ export class AdminController {
   @Get('complaints')
   getComplaints(
     @Query('skip', ParseIntPipe) skip: number = 0,
-    @Query('take', ParseIntPipe) take: number = 20
+    @Query('take', ParseIntPipe) take: number = 20,
   ) {
     return this.adminService.getComplaints(skip, take);
   }
@@ -25,7 +25,7 @@ export class AdminController {
   resolveComplaint(
     @CurrentUser() admin: any,
     @Param('id') id: string,
-    @Body() dto: ResolveComplaintDto
+    @Body() dto: ResolveComplaintDto,
   ) {
     return this.adminService.resolveComplaint(admin.id, id, dto);
   }
@@ -36,7 +36,7 @@ export class AdminController {
     @Body('userId') userId: string,
     @Body('amountMinor', ParseIntPipe) amountMinor: number,
     @Body('idempotencyKey') idempotencyKey: string,
-    @Body('reason') reason: string
+    @Body('reason') reason: string,
   ) {
     return this.adminService.issueRefund(admin.id, userId, amountMinor, idempotencyKey, reason);
   }

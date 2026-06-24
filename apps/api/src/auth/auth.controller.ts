@@ -11,7 +11,7 @@ import { BadRequestException } from '@nestjs/common';
 function validateZod<T>(schema: z.ZodSchema<T>, data: any): T {
   const result = schema.safeParse(data);
   if (!result.success) {
-    const messages = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`);
+    const messages = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`);
     throw new BadRequestException(messages);
   }
   return result.data;
@@ -40,5 +40,11 @@ export class AuthController {
   @Get('me')
   getProfile(@Request() req: any) {
     return req.user;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('switch-role')
+  async switchRole(@Request() req: any) {
+    return this.authService.switchRole(req.user.id);
   }
 }

@@ -19,17 +19,14 @@ export class OffersController {
   createOffer(
     @CurrentUser() user: any,
     @Param('orderId') orderId: string,
-    @Body() dto: CreateOfferDto
+    @Body() dto: CreateOfferDto,
   ) {
     return this.offersService.createOffer(user.id, orderId, dto);
   }
 
   @Roles(UserRole.BUYER)
   @Get('orders/:orderId/offers')
-  getOffersForOrder(
-    @CurrentUser() user: any,
-    @Param('orderId') orderId: string
-  ) {
+  getOffersForOrder(@CurrentUser() user: any, @Param('orderId') orderId: string) {
     return this.offersService.getOffersForOrder(user.id, orderId);
   }
 
@@ -46,11 +43,7 @@ export class OffersController {
 
   @Roles(UserRole.SUPPLIER)
   @Patch('offers/:id')
-  updateOffer(
-    @CurrentUser() user: any,
-    @Param('id') id: string,
-    @Body() dto: UpdateOfferDto
-  ) {
+  updateOffer(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: UpdateOfferDto) {
     return this.offersService.updateOffer(user.id, id, dto);
   }
 
@@ -62,11 +55,7 @@ export class OffersController {
 
   @Roles(UserRole.BUYER)
   @Post('offers/:id/accept')
-  acceptOffer(
-    @CurrentUser() user: any,
-    @Param('id') id: string,
-    @Body() dto: AcceptOfferDto
-  ) {
+  acceptOffer(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: AcceptOfferDto) {
     return this.offersService.acceptOffer(user.id, id, dto.idempotencyKey);
   }
 }

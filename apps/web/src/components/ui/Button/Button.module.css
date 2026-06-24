@@ -91,7 +91,8 @@
   animation: spin 1s ease-in-out infinite;
 }
 
-.secondary .spinner, .ghost .spinner {
+.secondary .spinner,
+.ghost .spinner {
   border: 2px solid rgba(0, 0, 0, 0.1);
   border-top-color: var(--text-primary);
 }

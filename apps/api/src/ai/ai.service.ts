@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletsService } from '../wallets/wallets.service';
 import { AiSpecJobStatus, WalletTransactionType, Prisma } from '@prisma/client';
@@ -12,7 +19,7 @@ export class AiService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly walletsService: WalletsService
+    private readonly walletsService: WalletsService,
   ) {}
 
   async createJob(userId: string, fileId: string, idempotencyKey: string) {
@@ -42,10 +49,13 @@ export class AiService {
               priceMinor: AI_SPEC_PRICE_MINOR,
             },
           });
-        }
+        },
       );
     } catch (error) {
-      if (error instanceof ConflictException && (error.getResponse() as any).code === ErrorCode.IDEMPOTENCY_CONFLICT) {
+      if (
+        error instanceof ConflictException &&
+        (error.getResponse() as any).code === ErrorCode.IDEMPOTENCY_CONFLICT
+      ) {
         // Find existing job if idempotency conflict
         const existingJob = await this.prisma.aiSpecJob.findFirst({
           where: { userId, sourceFileId: fileId },
@@ -57,7 +67,7 @@ export class AiService {
     }
 
     // Запускаем асинхронную обработку
-    this.processJobAsync(job.id, userId).catch(err => {
+    this.processJobAsync(job.id, userId).catch((err) => {
       this.logger.error(`Error processing job ${job.id}: ${err.message}`, err.stack);
     });
 
@@ -84,10 +94,13 @@ export class AiService {
 
     try {
       // Имитируем задержку ИИ
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
 
       // Для тестирования возврата средств: если файл называется "error.pdf", имитируем ошибку ИИ
-      const job = await this.prisma.aiSpecJob.findUnique({ where: { id: jobId }, include: { sourceFile: true } });
+      const job = await this.prisma.aiSpecJob.findUnique({
+        where: { id: jobId },
+        include: { sourceFile: true },
+      });
       if (job?.sourceFile.originalName.includes('error')) {
         throw new Error('AI processing failed');
       }
@@ -119,7 +132,6 @@ export class AiService {
           redactionReport: { redactedItemsCount: 0 } as any,
         },
       });
-
     } catch (error: any) {
       this.logger.error(`Job ${jobId} failed, processing refund. Reason: ${error.message}`);
 
@@ -140,7 +152,7 @@ export class AiService {
           AI_SPEC_PRICE_MINOR,
           WalletTransactionType.REFUND,
           `refund-ai-${jobId}`, // idempotency key for refund
-          jobId
+          jobId,
         );
       } catch (refundError: any) {
         this.logger.error(`Failed to process refund for job ${jobId}: ${refundError.message}`);

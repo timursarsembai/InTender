@@ -29,3 +29,10 @@ apps/api/prisma/migrations/
 # Logs
 *.log
 npm-debug.log*
+
+# Internal AI agent docs (not for remote)
+docs/
+prompts/
+PLANS.md
+AGENTS.md
+manifest.json

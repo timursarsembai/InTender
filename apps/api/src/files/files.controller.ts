@@ -10,15 +10,12 @@ export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
   @Post('upload-intent')
-  createUploadIntent(
-    @CurrentUser() user: any,
-    @Body() dto: CreateUploadIntentDto
-  ) {
+  createUploadIntent(@CurrentUser() user: any, @Body() dto: CreateUploadIntentDto) {
     return this.filesService.createUploadIntent(
       user.id,
       dto.originalName,
       dto.mimeType,
-      dto.sizeBytes
+      dto.sizeBytes,
     );
   }
 

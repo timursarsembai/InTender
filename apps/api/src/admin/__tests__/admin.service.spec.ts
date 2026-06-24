@@ -40,12 +40,24 @@ describe('AdminService', () => {
   describe('resolveComplaint', () => {
     it('should throw NotFound if complaint does not exist', async () => {
       vi.mocked(prismaService.complaint.findUnique).mockResolvedValue(null);
-      await expect(service.resolveComplaint('admin-1', 'c-1', { status: ComplaintStatus.RESOLVED, resolution: 'res' })).rejects.toThrow(NotFoundException);
+      await expect(
+        service.resolveComplaint('admin-1', 'c-1', {
+          status: ComplaintStatus.RESOLVED,
+          resolution: 'res',
+        }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequest if already resolved', async () => {
-      vi.mocked(prismaService.complaint.findUnique).mockResolvedValue({ status: ComplaintStatus.RESOLVED } as any);
-      await expect(service.resolveComplaint('admin-1', 'c-1', { status: ComplaintStatus.RESOLVED, resolution: 'res' })).rejects.toThrow(BadRequestException);
+      vi.mocked(prismaService.complaint.findUnique).mockResolvedValue({
+        status: ComplaintStatus.RESOLVED,
+      } as any);
+      await expect(
+        service.resolveComplaint('admin-1', 'c-1', {
+          status: ComplaintStatus.RESOLVED,
+          resolution: 'res',
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should update complaint, issue refund, block user and log audit in transaction', async () => {
@@ -59,23 +71,29 @@ describe('AdminService', () => {
       const executeResolutionMock = async () => {
         const txMock = {
           user: { update: vi.fn() },
-          complaint: { update: vi.fn().mockResolvedValue({ id: 'c-1', status: ComplaintStatus.RESOLVED }) },
+          complaint: {
+            update: vi.fn().mockResolvedValue({ id: 'c-1', status: ComplaintStatus.RESOLVED }),
+          },
         };
         // call the callback mock
         await txMock.complaint.update();
         await txMock.user.update();
       };
 
-      vi.mocked(walletsService.charge).mockImplementation(async (userId, amount, type, key, refId, action) => {
-        if (action) {
-          const txMock = {
-            user: { update: vi.fn() },
-            complaint: { update: vi.fn().mockResolvedValue({ id: 'c-1', status: ComplaintStatus.RESOLVED }) },
-          };
-          await action(txMock as any);
-        }
-        return { id: 'tx-1' };
-      });
+      vi.mocked(walletsService.charge).mockImplementation(
+        async (userId, amount, type, key, refId, action) => {
+          if (action) {
+            const txMock = {
+              user: { update: vi.fn() },
+              complaint: {
+                update: vi.fn().mockResolvedValue({ id: 'c-1', status: ComplaintStatus.RESOLVED }),
+              },
+            };
+            await action(txMock as any);
+          }
+          return { id: 'tx-1' };
+        },
+      );
 
       const result = await service.resolveComplaint('admin-1', 'c-1', {
         status: ComplaintStatus.RESOLVED,
@@ -91,7 +109,7 @@ describe('AdminService', () => {
         WalletTransactionType.REFUND,
         'refund-key',
         'c-1',
-        expect.any(Function)
+        expect.any(Function),
       );
       expect(auditService.logAction).toHaveBeenCalled();
     });
@@ -99,22 +117,24 @@ describe('AdminService', () => {
 
   describe('issueRefund', () => {
     it('should issue manual refund and log audit', async () => {
-      vi.mocked(walletsService.charge).mockImplementation(async (userId, amount, type, key, refId, action) => {
-        if (action) {
-          await action({} as any);
-        }
-        return { id: 'tx-1' };
-      });
+      vi.mocked(walletsService.charge).mockImplementation(
+        async (userId, amount, type, key, refId, action) => {
+          if (action) {
+            await action({} as any);
+          }
+          return { id: 'tx-1' };
+        },
+      );
 
       const result = await service.issueRefund('admin-1', 'u-1', 10000, 'key', 'Manual adjustment');
-      
+
       expect(walletsService.charge).toHaveBeenCalledWith(
         'u-1',
         10000,
         WalletTransactionType.REFUND,
         'key',
         undefined,
-        expect.any(Function)
+        expect.any(Function),
       );
       expect(auditService.logAction).toHaveBeenCalled();
       expect(result.success).toBe(true);

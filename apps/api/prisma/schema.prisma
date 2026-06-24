@@ -36,19 +36,20 @@ model User {
   orders       Order[]
   files        FileObject[]
   aiSpecJobs   AiSpecJob[]
-  auditEvents  AuditEvent[]     @relation("AuditActor")
+  auditEvents  AuditEvent[]  @relation("AuditActor")
 
   buyerDisclosures    ContactDisclosure[] @relation("BuyerDisclosure")
   supplierDisclosures ContactDisclosure[] @relation("SupplierDisclosure")
 
-  reportedComplaints  Complaint[]         @relation("ComplaintReporter")
-  targetedComplaints  Complaint[]         @relation("ComplaintTarget")
-  resolvedComplaints  Complaint[]         @relation("ComplaintResolver")
+  reportedComplaints Complaint[] @relation("ComplaintReporter")
+  targetedComplaints Complaint[] @relation("ComplaintTarget")
+  resolvedComplaints Complaint[] @relation("ComplaintResolver")
 
-  authoredRatings     Rating[]            @relation("RatingAuthor")
-  targetedRatings     Rating[]            @relation("RatingTarget")
+  authoredRatings Rating[] @relation("RatingAuthor")
+  targetedRatings Rating[] @relation("RatingTarget")
 
-  notifications       Notification[]      @relation("UserNotifications")
+  notifications Notification[] @relation("UserNotifications")
+  chatMessages  ChatMessage[]  @relation("UserChatMessages")
 
   @@map("users")
 }
@@ -80,6 +81,11 @@ model Organization {
   legalName          String                @map("legal_name")
   bin                String                @unique @db.VarChar(12)
   cityId             String?               @map("city_id")
+  region             String?
+  district           String?
+  city               String?
+  latitude           Float?
+  longitude          Float?
   businessStartedAt  DateTime?             @map("business_started_at") @db.Timestamptz
   vatPayerStatus     VatPayerStatus        @default(UNKNOWN) @map("vat_payer_status")
   verificationStatus VerificationStatus    @default(PENDING) @map("verification_status")
@@ -88,10 +94,12 @@ model Organization {
   createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime              @updatedAt @map("updated_at") @db.Timestamptz
 
-  owner                   User                    @relation(fields: [ownerUserId], references: [id])
-  offers                  Offer[]
-  buyerSnapshots          AcceptedOfferSnapshot[]  @relation("BuyerOrg")
-  supplierSnapshots       AcceptedOfferSnapshot[]  @relation("SupplierOrg")
+  owner             User                    @relation(fields: [ownerUserId], references: [id])
+  offers            Offer[]
+  buyerSnapshots    AcceptedOfferSnapshot[] @relation("BuyerOrg")
+  supplierSnapshots AcceptedOfferSnapshot[] @relation("SupplierOrg")
+  buyerChatRooms    ChatRoom[]              @relation("BuyerChatRooms")
+  supplierChatRooms ChatRoom[]              @relation("SupplierChatRooms")
 
   @@map("organizations")
 }
@@ -99,13 +107,13 @@ model Organization {
 // ─── Wallet ──────────────────────────────────────────────────────────
 
 model Wallet {
-  id                    String              @id @default(uuid()) @db.Uuid
-  userId                String              @unique @map("user_id") @db.Uuid
-  currency              String              @default("KZT") @db.VarChar(3)
-  availableBalanceMinor Int                 @default(0) @map("available_balance_minor")
-  version               Int                 @default(0)
-  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt             DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String   @unique @map("user_id") @db.Uuid
+  currency              String   @default("KZT") @db.VarChar(3)
+  availableBalanceMinor Int      @default(0) @map("available_balance_minor")
+  version               Int      @default(0)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   user         User                @relation(fields: [userId], references: [id])
   transactions WalletTransaction[]
@@ -128,17 +136,17 @@ enum TransactionDirection {
 }
 
 model WalletTransaction {
-  id                String               @id @default(uuid()) @db.Uuid
-  walletId          String               @map("wallet_id") @db.Uuid
+  id                String                @id @default(uuid()) @db.Uuid
+  walletId          String                @map("wallet_id") @db.Uuid
   type              WalletTransactionType
-  amountMinor       Int                  @map("amount_minor")
+  amountMinor       Int                   @map("amount_minor")
   direction         TransactionDirection
-  referenceType     String?              @map("reference_type")
-  referenceId       String?              @map("reference_id") @db.Uuid
-  idempotencyKey    String               @unique @map("idempotency_key")
-  balanceAfterMinor Int                  @map("balance_after_minor")
+  referenceType     String?               @map("reference_type")
+  referenceId       String?               @map("reference_id") @db.Uuid
+  idempotencyKey    String                @unique @map("idempotency_key")
+  balanceAfterMinor Int                   @map("balance_after_minor")
   description       String?
-  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz
 
   wallet Wallet @relation(fields: [walletId], references: [id])
 
@@ -180,7 +188,12 @@ model Order {
   unit                String
   specification       String?
   brandModel          String?         @map("brand_model")
-  deliveryAddress     String          @map("delivery_address")
+  deliveryAddress     String?         @map("delivery_address")
+  deliveryRegion      String?         @map("delivery_region")
+  deliveryDistrict    String?         @map("delivery_district")
+  deliveryCity        String?         @map("delivery_city")
+  deliveryLat         Float?          @map("delivery_lat")
+  deliveryLng         Float?          @map("delivery_lng")
   supplierGeography   String?         @map("supplier_geography")
   logistics           LogisticsOption @default(EITHER)
   desiredPriceMinor   Int?            @map("desired_price_minor")
@@ -197,12 +210,13 @@ model Order {
   closedAt            DateTime?       @map("closed_at") @db.Timestamptz
   updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz
 
-  buyer             User                    @relation(fields: [buyerId], references: [id])
-  attachments       OrderAttachment[]
-  offers            Offer[]
-  snapshots         AcceptedOfferSnapshot[]
-  disclosures       ContactDisclosure[]
-  ratings           Rating[]
+  buyer       User                    @relation(fields: [buyerId], references: [id])
+  attachments OrderAttachment[]
+  offers      Offer[]
+  snapshots   AcceptedOfferSnapshot[]
+  disclosures ContactDisclosure[]
+  ratings     Rating[]
+  chatRooms   ChatRoom[]
 
   @@index([buyerId, status])
   @@index([status, createdAt])
@@ -224,15 +238,15 @@ enum AntivirusStatus {
 }
 
 model FileObject {
-  id               String          @id @default(uuid()) @db.Uuid
-  ownerUserId      String          @map("owner_user_id") @db.Uuid
-  storageKey       String          @unique @map("storage_key")
-  originalName     String          @map("original_name")
-  mimeType         String          @map("mime_type")
-  sizeBytes        Int             @map("size_bytes")
-  checksum         String?
-  antivirusStatus  AntivirusStatus @default(PENDING) @map("antivirus_status")
-  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  id              String          @id @default(uuid()) @db.Uuid
+  ownerUserId     String          @map("owner_user_id") @db.Uuid
+  storageKey      String          @unique @map("storage_key")
+  originalName    String          @map("original_name")
+  mimeType        String          @map("mime_type")
+  sizeBytes       Int             @map("size_bytes")
+  checksum        String?
+  antivirusStatus AntivirusStatus @default(PENDING) @map("antivirus_status")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
 
   owner       User              @relation(fields: [ownerUserId], references: [id])
   attachments OrderAttachment[]
@@ -270,18 +284,19 @@ enum OfferVatStatus {
 }
 
 model Offer {
-  id                       String       @id @default(uuid()) @db.Uuid
-  orderId                  String       @map("order_id") @db.Uuid
-  supplierOrganizationId   String       @map("supplier_organization_id") @db.Uuid
-  status                   OfferStatus  @default(ACTIVE)
-  currentVersionId         String?      @map("current_version_id") @db.Uuid
-  createdAt                DateTime     @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt                DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  id                     String      @id @default(uuid()) @db.Uuid
+  orderId                String      @map("order_id") @db.Uuid
+  supplierOrganizationId String      @map("supplier_organization_id") @db.Uuid
+  status                 OfferStatus @default(ACTIVE)
+  currentVersionId       String?     @map("current_version_id") @db.Uuid
+  createdAt              DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime    @updatedAt @map("updated_at") @db.Timestamptz
 
-  order                    Order        @relation(fields: [orderId], references: [id])
-  supplierOrganization     Organization @relation(fields: [supplierOrganizationId], references: [id])
-  versions                 OfferVersion[]
-  snapshot                 AcceptedOfferSnapshot?
+  order                Order                  @relation(fields: [orderId], references: [id])
+  supplierOrganization Organization           @relation(fields: [supplierOrganizationId], references: [id])
+  versions             OfferVersion[]
+  snapshot             AcceptedOfferSnapshot?
+  chatRooms            ChatRoom[]
 
   @@unique([orderId, supplierOrganizationId])
   @@index([orderId, status])
@@ -300,6 +315,11 @@ model OfferVersion {
   vatStatus         OfferVatStatus @map("vat_status")
   paymentTerms      String?        @map("payment_terms")
   deliveryDays      Int            @map("delivery_days")
+  departureRegion   String?        @map("departure_region")
+  departureDistrict String?        @map("departure_district")
+  departureCity     String?        @map("departure_city")
+  departureLat      Float?         @map("departure_lat")
+  departureLng      Float?         @map("departure_lng")
   confirmations     Json?
   comment           String?
   versionNumber     Int            @map("version_number")
@@ -314,24 +334,24 @@ model OfferVersion {
 // ─── Acceptance ──────────────────────────────────────────────────────
 
 model AcceptedOfferSnapshot {
-  id                       String   @id @default(uuid()) @db.Uuid
-  offerId                  String   @unique @map("offer_id") @db.Uuid
-  orderId                  String   @map("order_id") @db.Uuid
-  buyerOrganizationId      String   @map("buyer_organization_id") @db.Uuid
-  supplierOrganizationId   String   @map("supplier_organization_id") @db.Uuid
-  orderSnapshot            Json     @map("order_snapshot")
-  offerVersionSnapshot     Json     @map("offer_version_snapshot")
-  buyerPublicProfile       Json     @map("buyer_public_profile")
-  supplierPublicProfile    Json     @map("supplier_public_profile")
-  buyerContact             Json     @map("buyer_contact")
-  supplierContact          Json     @map("supplier_contact")
-  commercialTerms          Json     @map("commercial_terms")
-  acceptedAt               DateTime @default(now()) @map("accepted_at") @db.Timestamptz
+  id                     String   @id @default(uuid()) @db.Uuid
+  offerId                String   @unique @map("offer_id") @db.Uuid
+  orderId                String   @map("order_id") @db.Uuid
+  buyerOrganizationId    String   @map("buyer_organization_id") @db.Uuid
+  supplierOrganizationId String   @map("supplier_organization_id") @db.Uuid
+  orderSnapshot          Json     @map("order_snapshot")
+  offerVersionSnapshot   Json     @map("offer_version_snapshot")
+  buyerPublicProfile     Json     @map("buyer_public_profile")
+  supplierPublicProfile  Json     @map("supplier_public_profile")
+  buyerContact           Json     @map("buyer_contact")
+  supplierContact        Json     @map("supplier_contact")
+  commercialTerms        Json     @map("commercial_terms")
+  acceptedAt             DateTime @default(now()) @map("accepted_at") @db.Timestamptz
 
-  offer                    Offer        @relation(fields: [offerId], references: [id])
-  order                    Order        @relation(fields: [orderId], references: [id])
-  buyerOrganization        Organization @relation("BuyerOrg", fields: [buyerOrganizationId], references: [id])
-  supplierOrganization     Organization @relation("SupplierOrg", fields: [supplierOrganizationId], references: [id])
+  offer                Offer        @relation(fields: [offerId], references: [id])
+  order                Order        @relation(fields: [orderId], references: [id])
+  buyerOrganization    Organization @relation("BuyerOrg", fields: [buyerOrganizationId], references: [id])
+  supplierOrganization Organization @relation("SupplierOrg", fields: [supplierOrganizationId], references: [id])
 
   @@map("accepted_offer_snapshots")
 }
@@ -341,12 +361,12 @@ enum ContactDisclosureReason {
 }
 
 model ContactDisclosure {
-  id             String                   @id @default(uuid()) @db.Uuid
-  orderId        String                   @map("order_id") @db.Uuid
-  buyerUserId    String                   @map("buyer_user_id") @db.Uuid
-  supplierUserId String                   @map("supplier_user_id") @db.Uuid
+  id             String                  @id @default(uuid()) @db.Uuid
+  orderId        String                  @map("order_id") @db.Uuid
+  buyerUserId    String                  @map("buyer_user_id") @db.Uuid
+  supplierUserId String                  @map("supplier_user_id") @db.Uuid
   reason         ContactDisclosureReason
-  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz
 
   order    Order @relation(fields: [orderId], references: [id])
   buyer    User  @relation("BuyerDisclosure", fields: [buyerUserId], references: [id])
@@ -434,15 +454,15 @@ model Complaint {
 // ─── Ratings ─────────────────────────────────────────────────────────
 
 model Rating {
-  id             String   @id @default(uuid()) @db.Uuid
-  authorUserId   String   @map("author_user_id") @db.Uuid
-  targetUserId   String   @map("target_user_id") @db.Uuid
-  targetOrderId  String   @map("target_order_id") @db.Uuid
-  score          Int      // 1 to 5
-  comment        String?
-  isDeleted      Boolean  @default(false) @map("is_deleted")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id            String   @id @default(uuid()) @db.Uuid
+  authorUserId  String   @map("author_user_id") @db.Uuid
+  targetUserId  String   @map("target_user_id") @db.Uuid
+  targetOrderId String   @map("target_order_id") @db.Uuid
+  score         Int // 1 to 5
+  comment       String?
+  isDeleted     Boolean  @default(false) @map("is_deleted")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   author User  @relation("RatingAuthor", fields: [authorUserId], references: [id])
   target User  @relation("RatingTarget", fields: [targetUserId], references: [id])
@@ -455,17 +475,56 @@ model Rating {
 // ─── Notifications ───────────────────────────────────────────────────
 
 model Notification {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  type       String   // e.g., 'ORDER_ACCEPTED', 'OFFER_RECEIVED', 'REFUND_ISSUED'
-  title      String
-  message    String
-  isRead     Boolean  @default(false) @map("is_read")
-  payload    Json?
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  type      String // e.g., 'ORDER_ACCEPTED', 'OFFER_RECEIVED', 'REFUND_ISSUED'
+  title     String
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   user User @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead, createdAt])
   @@map("notifications")
+}
+
+// ─── Chat ────────────────────────────────────────────────────────────
+
+model ChatRoom {
+  id                     String   @id @default(uuid()) @db.Uuid
+  orderId                String   @map("order_id") @db.Uuid
+  buyerOrganizationId    String   @map("buyer_organization_id") @db.Uuid
+  supplierOrganizationId String   @map("supplier_organization_id") @db.Uuid
+  offerId                String?  @map("offer_id") @db.Uuid
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  order                Order        @relation(fields: [orderId], references: [id])
+  buyerOrganization    Organization @relation("BuyerChatRooms", fields: [buyerOrganizationId], references: [id])
+  supplierOrganization Organization @relation("SupplierChatRooms", fields: [supplierOrganizationId], references: [id])
+  offer                Offer?       @relation(fields: [offerId], references: [id])
+
+  messages ChatMessage[]
+
+  @@unique([orderId, buyerOrganizationId, supplierOrganizationId])
+  @@index([buyerOrganizationId])
+  @@index([supplierOrganizationId])
+  @@map("chat_rooms")
+}
+
+model ChatMessage {
+  id           String   @id @default(uuid()) @db.Uuid
+  chatRoomId   String   @map("chat_room_id") @db.Uuid
+  senderUserId String   @map("sender_user_id") @db.Uuid
+  content      String
+  isRead       Boolean  @default(false) @map("is_read")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  sender   User     @relation("UserChatMessages", fields: [senderUserId], references: [id])
+
+  @@index([chatRoomId, createdAt])
+  @@map("chat_messages")
 }

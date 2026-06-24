@@ -58,7 +58,7 @@ describe('WalletsService', () => {
       vi.mocked(prismaService.wallet.findUnique).mockResolvedValue(mockWallet as any);
 
       await expect(
-        service.charge('u-1', 1500, WalletTransactionType.ORDER_PUBLICATION, 'key-1')
+        service.charge('u-1', 1500, WalletTransactionType.ORDER_PUBLICATION, 'key-1'),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -78,7 +78,12 @@ describe('WalletsService', () => {
         return cb(txMock as any);
       });
 
-      const result = await service.charge('u-1', 500, WalletTransactionType.ORDER_PUBLICATION, 'key-1');
+      const result = await service.charge(
+        'u-1',
+        500,
+        WalletTransactionType.ORDER_PUBLICATION,
+        'key-1',
+      );
       expect(result).toEqual(mockTxResult);
       expect(prismaService.$transaction).toHaveBeenCalled();
     });
@@ -95,7 +100,7 @@ describe('WalletsService', () => {
       vi.mocked(prismaService.$transaction).mockRejectedValue(prismaError);
 
       await expect(
-        service.charge('u-1', 500, WalletTransactionType.ORDER_PUBLICATION, 'key-2')
+        service.charge('u-1', 500, WalletTransactionType.ORDER_PUBLICATION, 'key-2'),
       ).rejects.toMatchObject({
         response: { code: ErrorCode.IDEMPOTENCY_CONFLICT },
       });
@@ -114,7 +119,7 @@ describe('WalletsService', () => {
       });
 
       await expect(
-        service.charge('u-1', 500, WalletTransactionType.ORDER_PUBLICATION, 'key-3')
+        service.charge('u-1', 500, WalletTransactionType.ORDER_PUBLICATION, 'key-3'),
       ).rejects.toMatchObject({
         response: { code: 'CONCURRENCY_CONFLICT' },
       });

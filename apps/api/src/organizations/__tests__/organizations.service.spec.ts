@@ -23,7 +23,12 @@ describe('OrganizationsService', () => {
     contacts: { phone: '123' },
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
+    region: 'Region',
+    district: 'District',
+    city: 'City',
+    latitude: 0,
+    longitude: 0,
+  } as any;
 
   beforeEach(async () => {
     prismaService = {
@@ -44,7 +49,7 @@ describe('OrganizationsService', () => {
       vi.mocked(prismaService.organization.findUnique).mockResolvedValue(mockOrg);
 
       const result = await service.getPublicProfile('test-org-id');
-      
+
       expect(result).toBeDefined();
       expect(result.id).toBe(mockOrg.id);
       expect(result.legalType).toBe(mockOrg.legalType);
