@@ -78,6 +78,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard/settings" className={styles.navItem}>
             Настройки
           </Link>
+          {user.role === 'ADMIN' && (
+            <Link href="/dashboard/admin" className={styles.navItem} style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+              ⚙ Администратор
+            </Link>
+          )}
         </nav>
 
         <div className={styles.userSection}>

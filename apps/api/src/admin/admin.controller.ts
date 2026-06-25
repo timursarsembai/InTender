@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -6,12 +6,23 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@intender/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ResolveComplaintDto } from './dto/resolve-complaint.dto';
+import { UpdateConfigDto } from './dto/update-config.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 @Controller('v1/admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
+
+  @Get('config')
+  getConfig() {
+    return this.adminService.getConfig();
+  }
+
+  @Patch('config')
+  updateConfig(@Body() dto: UpdateConfigDto) {
+    return this.adminService.updateConfig(dto);
+  }
 
   @Get('complaints')
   getComplaints(

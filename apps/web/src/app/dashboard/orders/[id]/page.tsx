@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -14,6 +14,69 @@ import {
   LocationData,
 } from '@/components/ui/LocationAutocomplete/LocationAutocomplete';
 import { Map } from '@/components/ui/Map';
+
+// Parses "• Characteristic: Value" lines
+function parseSpecTable(text: string) {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const charLines = lines.filter((l) => l.startsWith('• '));
+  if (charLines.length === 0) return null;
+
+  const rows = charLines.map((l) => {
+    const body = l.slice(2); // remove "• "
+    const colonIdx = body.indexOf(':');
+    if (colonIdx === -1) return { characteristic: body, requirement: '' };
+    return { characteristic: body.slice(0, colonIdx).trim(), requirement: body.slice(colonIdx + 1).trim() };
+  });
+
+  const additionalLine = lines.find((l) => l.startsWith('Дополнительные требования:'));
+  const additional = additionalLine ? additionalLine.replace('Дополнительные требования:', '').trim() : '';
+
+  return { rows, additional };
+}
+
+function SpecificationView({ text }: { text: string }) {
+  const parsed = useMemo(() => parseSpecTable(text), [text]);
+
+  if (!parsed) {
+    return (
+      <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text-secondary)', lineHeight: 1.6, padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+        {text}
+      </div>
+    );
+  }
+
+  const th: React.CSSProperties = { padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '2px solid var(--border-color)', textAlign: 'left', backgroundColor: 'var(--bg-secondary)', whiteSpace: 'nowrap' };
+  const td: React.CSSProperties = { padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color)', fontSize: '0.875rem', lineHeight: 1.5, verticalAlign: 'top' };
+
+  return (
+    <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={{ ...th, width: 36 }}>№</th>
+            <th style={{ ...th, width: '35%' }}>Характеристика</th>
+            <th style={th}>Требование</th>
+          </tr>
+        </thead>
+        <tbody>
+          {parsed.rows.map((row, i) => (
+            <tr key={i} style={{ backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--bg-secondary)' }}>
+              <td style={{ ...td, textAlign: 'center', color: 'var(--text-muted)' }}>{i + 1}</td>
+              <td style={{ ...td, fontWeight: 500 }}>{row.characteristic}</td>
+              <td style={{ ...td, color: 'var(--text-secondary)' }}>{row.requirement}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {parsed.additional && (
+        <div style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', fontSize: '0.875rem' }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Доп. требования: </span>
+          <span style={{ color: 'var(--text-secondary)' }}>{parsed.additional}</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function OrderDetailsPage() {
   const params = useParams();
@@ -69,6 +132,7 @@ export default function OrderDetailsPage() {
       if (user?.role === 'BUYER') {
         try {
           const offersData = await api.get<any[]>(`/orders/${params.id}/offers`);
+          console.log('Offers loaded:', offersData.map((o: any) => ({ id: o.id, supplierOrganizationId: o.supplierOrganizationId })));
           setOffers(offersData);
         } catch (e) {
           console.error('No offers fetched');
@@ -235,14 +299,29 @@ export default function OrderDetailsPage() {
 
   const handleStartChat = async (supplierOrgId: string) => {
     try {
-      const room = await api.post<any>('/chat/rooms/find-or-create', {
+      // Buyer uses their own org from auth context (reliable).
+      // Supplier uses the buyer org from the order.
+      const buyerOrganizationId = isBuyer
+        ? user?.organizationId
+        : order?.buyer?.id;
+
+      if (!buyerOrganizationId) {
+        showInfo('Ошибка', 'Не найдена организация покупателя. Убедитесь, что профиль организации заполнен.');
+        return;
+      }
+      if (!supplierOrgId) {
+        showInfo('Ошибка', 'Не найдена организация поставщика');
+        return;
+      }
+
+      await api.post<any>('/chat/rooms/find-or-create', {
         orderId: order.id,
-        buyerOrganizationId: order.buyer.id, // order.buyer holds the organization info
+        buyerOrganizationId,
         supplierOrganizationId: supplierOrgId,
       });
       router.push('/dashboard/messages');
     } catch (err: any) {
-      showInfo('Ошибка', 'Не удалось открыть чат');
+      showInfo('Ошибка', `Не удалось открыть чат: ${err?.message || String(err)}`);
     }
   };
 
@@ -351,15 +430,23 @@ export default function OrderDetailsPage() {
                 marginBottom: '1.5rem',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>{order.title}</h1>
-                <Badge variant={order.status === 'PUBLISHED' ? 'success' : 'neutral'}>
-                  {statusMap[order.status] || order.status}
-                </Badge>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>{order.title}</h1>
+                  <Badge variant={order.status === 'PUBLISHED' ? 'success' : 'neutral'}>
+                    {statusMap[order.status] || order.status}
+                  </Badge>
+                </div>
+                {order.updatedAt && order.createdAt &&
+                  new Date(order.updatedAt).getTime() - new Date(order.createdAt).getTime() > 5000 && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    Изменён: {new Date(order.updatedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
               </div>
               {isBuyer && (
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {order.status === 'DRAFT' && (
+                  {(order.status === 'DRAFT' || order.status === 'PUBLISHED') && (
                     <Button
                       variant="outline"
                       onClick={() => router.push(`/dashboard/orders/${order.id}/edit`)}
@@ -462,18 +549,7 @@ export default function OrderDetailsPage() {
             <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>
               Спецификация
             </h3>
-            <div
-              style={{
-                whiteSpace: 'pre-wrap',
-                color: 'var(--text-secondary)',
-                lineHeight: 1.6,
-                padding: '1rem',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-md)',
-              }}
-            >
-              {order.specification}
-            </div>
+            <SpecificationView text={order.specification} />
 
             {/* Disclosed Contacts Section */}
             {contacts && (

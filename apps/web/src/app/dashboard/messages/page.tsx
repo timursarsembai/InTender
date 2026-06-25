@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useChat } from '@/contexts/ChatContext';
@@ -20,15 +20,21 @@ interface ChatRoom {
 
 export default function MessagesPage() {
   const { user } = useAuth();
-  const { joinRoom, leaveRoom, messages, sendMessage } = useChat();
+  const { joinRoom, leaveRoom, messages, setMessages, sendMessage } = useChat();
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
   const [loadingRooms, setLoadingRooms] = useState(true);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchRooms();
   }, []);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, activeRoomId]);
 
   const fetchRooms = async () => {
     try {
@@ -41,12 +47,19 @@ export default function MessagesPage() {
     }
   };
 
-  const handleSelectRoom = (roomId: string) => {
-    if (activeRoomId) {
-      leaveRoom(activeRoomId);
-    }
+  const handleSelectRoom = async (roomId: string) => {
+    if (activeRoomId) leaveRoom(activeRoomId);
     setActiveRoomId(roomId);
     joinRoom(roomId);
+    // Load history only if not cached
+    if (!messages[roomId]) {
+      try {
+        const history = await api.get<any[]>(`/chat/rooms/${roomId}/messages`);
+        setMessages((prev) => ({ ...prev, [roomId]: history }));
+      } catch (err) {
+        console.error('Failed to load message history', err);
+      }
+    }
   };
 
   const handleSend = () => {
@@ -57,6 +70,16 @@ export default function MessagesPage() {
 
   const activeRoom = rooms.find((r) => r.id === activeRoomId);
   const roomMessages = activeRoomId ? messages[activeRoomId] || [] : [];
+
+  // Other party = whichever organization is NOT the current user's.
+  // Relies on org id (not role) so it stays correct when a user switches roles.
+  const otherPartyName = (room: ChatRoom): string => {
+    const myOrgId = user?.organizationId;
+    if (myOrgId && room.buyerOrganization?.id === myOrgId) {
+      return room.supplierOrganization?.legalName || 'Поставщик';
+    }
+    return room.buyerOrganization?.legalName || 'Заказчик';
+  };
 
   return (
     <div className={styles.container}>
@@ -69,10 +92,7 @@ export default function MessagesPage() {
         ) : (
           <ul className={styles.roomList}>
             {rooms.map((room) => {
-              const otherParty =
-                user?.role === 'BUYER'
-                  ? room.supplierOrganization.legalName
-                  : room.buyerOrganization.legalName;
+              const otherParty = otherPartyName(room);
               return (
                 <li
                   key={room.id}
@@ -80,7 +100,7 @@ export default function MessagesPage() {
                   onClick={() => handleSelectRoom(room.id)}
                 >
                   <div className={styles.roomTitle}>{otherParty}</div>
-                  <div className={styles.roomOrder}>{room.order.title}</div>
+                  <div className={styles.roomOrder}>{room.order?.title}</div>
                 </li>
               );
             })}
@@ -92,15 +112,16 @@ export default function MessagesPage() {
         {activeRoom ? (
           <>
             <div className={styles.chatHeader}>
-              <h3>
-                {user?.role === 'BUYER'
-                  ? activeRoom.supplierOrganization.legalName
-                  : activeRoom.buyerOrganization.legalName}
-              </h3>
-              <span className={styles.orderRef}>Заказ: {activeRoom.order.title}</span>
+              <h3>{otherPartyName(activeRoom)}</h3>
+              <span className={styles.orderRef}>Заказ: {activeRoom.order?.title}</span>
             </div>
 
             <div className={styles.messageList}>
+              {roomMessages.length === 0 && (
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem', fontSize: '0.875rem' }}>
+                  Напишите первое сообщение
+                </p>
+              )}
               {roomMessages.map((msg: any) => {
                 const isMine = msg.senderUserId === user?.id;
                 return (
@@ -109,15 +130,16 @@ export default function MessagesPage() {
                     className={`${styles.messageWrapper} ${isMine ? styles.mine : styles.theirs}`}
                   >
                     <div className={styles.messageBubble}>
-                      <div className={styles.messageSender}>{msg.sender.email}</div>
+                      <div className={styles.messageSender}>{msg.sender?.email}</div>
                       <div className={styles.messageContent}>{msg.content}</div>
                       <div className={styles.messageTime}>
-                        {new Date(msg.createdAt).toLocaleTimeString()}
+                        {new Date(msg.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                   </div>
                 );
               })}
+              <div ref={bottomRef} />
             </div>
 
             <div className={styles.inputArea}>

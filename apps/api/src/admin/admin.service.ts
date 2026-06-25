@@ -8,8 +8,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WalletsService } from '../wallets/wallets.service';
 import { AuditService } from '../audit/audit.service';
 import { ResolveComplaintDto } from './dto/resolve-complaint.dto';
+import { UpdateConfigDto } from './dto/update-config.dto';
 import { WalletTransactionType, ComplaintStatus } from '@prisma/client';
 import { ErrorCode } from '@intender/shared';
+
+const CONFIG_KEYS = {
+  aiProvider: 'ai.provider',
+  deepseekApiKey: 'ai.deepseek.apiKey',
+  anthropicApiKey: 'ai.anthropic.apiKey',
+  geminiApiKey: 'ai.gemini.apiKey',
+} as const;
 
 @Injectable()
 export class AdminService {
@@ -122,6 +130,44 @@ export class AdminService {
       },
     );
     return { success: true };
+  }
+
+  async getConfig() {
+    const rows = await this.prisma.appConfig.findMany({
+      where: { key: { in: Object.values(CONFIG_KEYS) } },
+    });
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+
+    return {
+      aiProvider: map[CONFIG_KEYS.aiProvider] ?? process.env.AI_PROVIDER ?? 'deepseek',
+      deepseekApiKey: map[CONFIG_KEYS.deepseekApiKey] ? '••••••••' : '',
+      anthropicApiKey: map[CONFIG_KEYS.anthropicApiKey] ? '••••••••' : '',
+      geminiApiKey: map[CONFIG_KEYS.geminiApiKey] ? '••••••••' : '',
+      deepseekApiKeySet: !!map[CONFIG_KEYS.deepseekApiKey],
+      anthropicApiKeySet: !!map[CONFIG_KEYS.anthropicApiKey],
+      geminiApiKeySet: !!map[CONFIG_KEYS.geminiApiKey],
+    };
+  }
+
+  async updateConfig(dto: UpdateConfigDto) {
+    const updates: { key: string; value: string }[] = [];
+
+    if (dto.aiProvider) updates.push({ key: CONFIG_KEYS.aiProvider, value: dto.aiProvider });
+    if (dto.deepseekApiKey) updates.push({ key: CONFIG_KEYS.deepseekApiKey, value: dto.deepseekApiKey });
+    if (dto.anthropicApiKey) updates.push({ key: CONFIG_KEYS.anthropicApiKey, value: dto.anthropicApiKey });
+    if (dto.geminiApiKey) updates.push({ key: CONFIG_KEYS.geminiApiKey, value: dto.geminiApiKey });
+
+    await Promise.all(
+      updates.map((u) =>
+        this.prisma.appConfig.upsert({
+          where: { key: u.key },
+          create: u,
+          update: { value: u.value },
+        }),
+      ),
+    );
+
+    return this.getConfig();
   }
 
   async deleteRating(adminId: string, ratingId: string) {

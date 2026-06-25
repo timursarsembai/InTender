@@ -49,8 +49,8 @@
 }
 
 .roomItem.active {
-  background: var(--primary-50);
-  border-left: 3px solid var(--primary-main);
+  background: var(--bg-hover);
+  border-left: 3px solid var(--accent-primary);
 }
 
 .roomTitle {
@@ -127,7 +127,7 @@
 }
 
 .mine .messageBubble {
-  background: var(--primary-main);
+  background: var(--accent-primary);
   color: white;
   border-bottom-right-radius: 0;
 }

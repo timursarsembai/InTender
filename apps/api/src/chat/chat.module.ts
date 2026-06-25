@@ -4,6 +4,7 @@ import { ChatController } from './chat.controller';
 import { ChatGateway } from './chat.gateway';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
+import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { JwtModule } from '@nestjs/jwt';
       secret: process.env.JWT_SECRET || 'super-secret',
     }),
   ],
-  providers: [ChatService, ChatGateway],
+  providers: [ChatService, ChatGateway, WsJwtGuard],
   controllers: [ChatController],
 })
 export class ChatModule {}

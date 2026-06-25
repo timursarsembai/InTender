@@ -12,6 +12,11 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(16),
   JWT_EXPIRES_IN: z.string().default('1d'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  // AI providers — укажите ключ для выбранного провайдера
+  AI_PROVIDER: z.enum(['deepseek', 'claude', 'gemini']).default('deepseek'),
+  DEEPSEEK_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

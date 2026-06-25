@@ -71,6 +71,22 @@ export class WalletsService {
     );
   }
 
+  async refund(
+    userId: string,
+    amountMinor: number,
+    idempotencyKey: string,
+    referenceId?: string,
+  ) {
+    return this.executeWalletMutation(
+      userId,
+      amountMinor,
+      TransactionDirection.CREDIT,
+      WalletTransactionType.REFUND,
+      idempotencyKey,
+      referenceId,
+    );
+  }
+
   /**
    * Executes a wallet mutation with Optimistic Concurrency Control and retries.
    */

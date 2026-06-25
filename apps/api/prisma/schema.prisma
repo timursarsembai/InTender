@@ -528,3 +528,13 @@ model ChatMessage {
   @@index([chatRoomId, createdAt])
   @@map("chat_messages")
 }
+
+// ─── App Config ──────────────────────────────────────────────────────
+
+model AppConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("app_config")
+}
