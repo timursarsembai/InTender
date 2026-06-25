@@ -22,22 +22,22 @@ export class SupportChatController {
   constructor(private readonly supportChatService: SupportChatService) {}
 
   @Get('my-room')
-  getMyRoom(@CurrentUser() user: { sub: string }) {
-    return this.supportChatService.getOrCreateMyRoom(user.sub);
+  getMyRoom(@CurrentUser() user: { id: string }) {
+    return this.supportChatService.getOrCreateMyRoom(user.id);
   }
 
   @Get('my-messages')
-  getMyMessages(@CurrentUser() user: { sub: string }) {
-    return this.supportChatService.getMyMessages(user.sub);
+  getMyMessages(@CurrentUser() user: { id: string }) {
+    return this.supportChatService.getMyMessages(user.id);
   }
 
   @Post('send')
   sendMessage(
-    @CurrentUser() user: { sub: string },
+    @CurrentUser() user: { id: string },
     @Body('content') content: string,
     @Body('attachmentFileId') attachmentFileId?: string,
   ) {
-    return this.supportChatService.sendMessage(user.sub, content, attachmentFileId);
+    return this.supportChatService.sendMessage(user.id, content, attachmentFileId);
   }
 
   @UseGuards(RolesGuard)
@@ -53,19 +53,19 @@ export class SupportChatController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @Get('rooms/:id/messages')
-  getRoomMessages(@CurrentUser() user: { sub: string }, @Param('id') roomId: string) {
-    return this.supportChatService.getRoomMessages(user.sub, roomId);
+  getRoomMessages(@CurrentUser() user: { id: string }, @Param('id') roomId: string) {
+    return this.supportChatService.getRoomMessages(user.id, roomId);
   }
 
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @Post('rooms/:id/send')
   staffSendMessage(
-    @CurrentUser() user: { sub: string },
+    @CurrentUser() user: { id: string },
     @Param('id') roomId: string,
     @Body('content') content: string,
     @Body('attachmentFileId') attachmentFileId?: string,
   ) {
-    return this.supportChatService.staffSendMessage(user.sub, roomId, content, attachmentFileId);
+    return this.supportChatService.staffSendMessage(user.id, roomId, content, attachmentFileId);
   }
 }

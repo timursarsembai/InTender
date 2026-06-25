@@ -25,19 +25,19 @@ export class AdminController {
 
   @Post('users/:id/set-role')
   setUserRole(
-    @CurrentUser() admin: { sub: string },
+    @CurrentUser() admin: { id: string },
     @Param('id') userId: string,
     @Body('role') role: UserRole,
   ) {
-    return this.adminService.setUserRole(admin.sub, userId, role);
+    return this.adminService.setUserRole(admin.id, userId, role);
   }
 
   @Post('impersonate/:userId')
   impersonateUser(
-    @CurrentUser() admin: { sub: string },
+    @CurrentUser() admin: { id: string },
     @Param('userId') userId: string,
   ) {
-    return this.adminService.impersonateUser(admin.sub, userId);
+    return this.adminService.impersonateUser(admin.id, userId);
   }
 
   @Get('config')
@@ -60,26 +60,26 @@ export class AdminController {
 
   @Post('complaints/:id/resolve')
   resolveComplaint(
-    @CurrentUser() admin: { sub: string },
+    @CurrentUser() admin: { id: string },
     @Param('id') id: string,
     @Body() dto: ResolveComplaintDto,
   ) {
-    return this.adminService.resolveComplaint(admin.sub, id, dto);
+    return this.adminService.resolveComplaint(admin.id, id, dto);
   }
 
   @Post('refund')
   issueRefund(
-    @CurrentUser() admin: { sub: string },
+    @CurrentUser() admin: { id: string },
     @Body('userId') userId: string,
     @Body('amountMinor', ParseIntPipe) amountMinor: number,
     @Body('idempotencyKey') idempotencyKey: string,
     @Body('reason') reason: string,
   ) {
-    return this.adminService.issueRefund(admin.sub, userId, amountMinor, idempotencyKey, reason);
+    return this.adminService.issueRefund(admin.id, userId, amountMinor, idempotencyKey, reason);
   }
 
   @Post('ratings/:id/delete')
-  deleteRating(@CurrentUser() admin: { sub: string }, @Param('id') id: string) {
-    return this.adminService.deleteRating(admin.sub, id);
+  deleteRating(@CurrentUser() admin: { id: string }, @Param('id') id: string) {
+    return this.adminService.deleteRating(admin.id, id);
   }
 }
