@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { io, Socket } from 'socket.io-client';
 import styles from '../../messages/messages.module.css';
 import { Button } from '@/components/ui/Button/Button';
+import { Input } from '@/components/ui/Input/Input';
 
 interface SupportRoom {
   id: string;
@@ -219,11 +220,10 @@ export default function AdminSupportPage() {
               <button type="button" className={styles.attachButton} onClick={() => fileInputRef.current?.click()} disabled={uploading} title="Прикрепить файл">
                 📎
               </button>
-              <input
-                className={styles.textInput}
-                placeholder={uploading ? 'Загрузка...' : 'Ответить пользователю...'}
+              <Input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                placeholder={uploading ? 'Загрузка...' : 'Ответить пользователю...'}
                 onKeyDown={handleKeyDown}
                 disabled={uploading}
               />

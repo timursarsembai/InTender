@@ -6,6 +6,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { io, Socket } from 'socket.io-client';
 import styles from '../messages/messages.module.css';
 import { Button } from '@/components/ui/Button/Button';
+import { Input } from '@/components/ui/Input/Input';
 
 interface SupportMessage {
   id: string;
@@ -35,13 +36,17 @@ export default function HelpPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadMessages = useCallback(async () => {
+  const loadMessages = useCallback(async (retries = 2) => {
     try {
       const data = await api.get<{ room: SupportRoom; messages: SupportMessage[] }>('/support/my-messages');
       setRoom(data.room);
       setMessages(data.messages);
     } catch (err) {
-      console.error(err);
+      if (retries > 0) {
+        setTimeout(() => loadMessages(retries - 1), 1000);
+      } else {
+        console.error(err);
+      }
     }
   }, []);
 
@@ -201,13 +206,12 @@ export default function HelpPage() {
             disabled={uploading}
             title="Прикрепить файл"
           >
-            📎
+            {uploading ? '⏳' : '📎'}
           </button>
-          <input
-            className={styles.textInput}
-            placeholder={uploading ? 'Загрузка файла...' : 'Напишите сообщение...'}
+          <Input
             value={text}
             onChange={(e) => setText(e.target.value)}
+            placeholder={uploading ? 'Загрузка файла...' : 'Напишите сообщение...'}
             onKeyDown={handleKeyDown}
             disabled={uploading}
           />
