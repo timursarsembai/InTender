@@ -11,9 +11,21 @@ export class UpdateConfigDto {
 
   @IsOptional()
   @IsString()
+  deepseekModel?: string;
+
+  @IsOptional()
+  @IsString()
   anthropicApiKey?: string;
 
   @IsOptional()
   @IsString()
+  anthropicModel?: string;
+
+  @IsOptional()
+  @IsString()
   geminiApiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  geminiModel?: string;
 }

@@ -5,13 +5,16 @@ import { SPEC_ANALYSIS_PROMPT } from './prompt';
 export class GeminiProvider implements AiProvider {
   private readonly genAI: GoogleGenerativeAI;
 
-  constructor(apiKey: string) {
+  private readonly modelName: string;
+
+  constructor(apiKey: string, model = 'gemini-2.0-flash') {
+    this.modelName = model;
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
   async analyzeSpec(fileBuffer: Buffer, mimeType: string, fileName: string): Promise<SpecResult> {
     const model = this.genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: this.modelName,
       systemInstruction: SPEC_ANALYSIS_PROMPT,
     });
 

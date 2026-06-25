@@ -6,7 +6,10 @@ import { SPEC_ANALYSIS_PROMPT } from './prompt';
 export class DeepSeekProvider implements AiProvider {
   private readonly client: OpenAI;
 
-  constructor(apiKey: string) {
+  private readonly model: string;
+
+  constructor(apiKey: string, model = 'deepseek-chat') {
+    this.model = model;
     this.client = new OpenAI({
       apiKey,
       baseURL: 'https://api.deepseek.com',
@@ -17,7 +20,7 @@ export class DeepSeekProvider implements AiProvider {
     const text = await extractText(fileBuffer, mimeType, fileName);
 
     const response = await this.client.chat.completions.create({
-      model: 'deepseek-chat',
+      model: this.model,
       messages: [
         { role: 'system', content: SPEC_ANALYSIS_PROMPT },
         { role: 'user', content: `Спецификация:\n\n${text}` },

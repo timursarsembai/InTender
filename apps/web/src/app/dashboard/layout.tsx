@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import { useState } from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, logout, refreshUser } = useAuth();
+  const { user, isLoading, logout, refreshUser, impersonating, stopImpersonation } = useAuth();
   const router = useRouter();
   const [isSwitchingRole, setIsSwitchingRole] = useState(false);
 
@@ -18,10 +18,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!user || user.role === 'ADMIN') return;
     setIsSwitchingRole(true);
     try {
-      const { access_token } = await api.post<any>('/auth/switch-role');
+      const { access_token } = await api.post<{ access_token: string }>('/auth/switch-role');
       localStorage.setItem('access_token', access_token);
       await refreshUser();
-      router.push('/dashboard');
+      router.push('/dashboard/orders');
     } catch (err) {
       console.error('Ошибка смены роли', err);
     } finally {
@@ -34,9 +34,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!user) {
-    // If not user and not loading, we redirect to login in AuthProvider, but just in case
     return null;
   }
+
+  const isAdmin = user.role === 'ADMIN';
+  const isModerator = user.role === 'MODERATOR';
+  const isStaff = isAdmin || isModerator;
 
   const formatBalance = (minor: number) => {
     return (minor / 100).toLocaleString('ru-RU') + ' ₸';
@@ -44,15 +47,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className={styles.container}>
-      <aside className={styles.sidebar}>
+      {impersonating && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 9999,
+          backgroundColor: '#7c3aed',
+          color: '#fff',
+          padding: '0.5rem 1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.875rem',
+          fontWeight: 500,
+        }}>
+          <span>Вы просматриваете от имени: <strong>{impersonating.email}</strong></span>
+          <button
+            onClick={stopImpersonation}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              color: '#fff',
+              padding: '0.25rem 0.75rem',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '0.8rem',
+            }}
+          >
+            Выйти из режима
+          </button>
+        </div>
+      )}
+      <aside className={styles.sidebar} style={impersonating ? { top: '36px' } : undefined}>
         <div className={styles.logo}>
-          <Link href="/dashboard">InTender</Link>
+          <Link href="/dashboard/orders">InTender</Link>
         </div>
 
         <nav className={styles.nav}>
-          <Link href="/dashboard" className={styles.navItem}>
-            Сводка
-          </Link>
           {user.role === 'BUYER' && (
             <Link href="/dashboard/orders/new" className={styles.navItem}>
               Создать заказ
@@ -66,19 +100,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Мои отклики
             </Link>
           )}
-          <Link href="/dashboard/messages" className={styles.navItem}>
-            Сообщения
-          </Link>
-          <Link href="/dashboard/wallet" className={styles.navItem}>
-            Кошелек
-          </Link>
+          {!isAdmin && (
+            <Link href="/dashboard/messages" className={styles.navItem}>
+              Сообщения
+            </Link>
+          )}
+          {!isStaff && (
+            <Link href="/dashboard/wallet" className={styles.navItem}>
+              Кошелек
+            </Link>
+          )}
+          {!isStaff && (
+            <Link href="/dashboard/help" className={styles.navItem}>
+              Помощь
+            </Link>
+          )}
           <Link href="/dashboard/notifications" className={styles.navItem}>
             Уведомления
           </Link>
           <Link href="/dashboard/settings" className={styles.navItem}>
             Настройки
           </Link>
-          {user.role === 'ADMIN' && (
+          {isStaff && (
+            <Link href="/dashboard/admin/support" className={styles.navItem}>
+              Поддержка
+            </Link>
+          )}
+          {isAdmin && (
+            <Link href="/dashboard/admin/users" className={styles.navItem}>
+              Пользователи
+            </Link>
+          )}
+          {isAdmin && (
             <Link href="/dashboard/admin" className={styles.navItem} style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
               ⚙ Администратор
             </Link>
@@ -93,9 +146,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 ? 'Закупщик'
                 : user.role === 'SUPPLIER'
                   ? 'Поставщик'
-                  : 'Админ'}
+                  : user.role === 'MODERATOR'
+                    ? 'Модератор'
+                    : 'Админ'}
             </span>
-            {user.role !== 'ADMIN' && (
+            {!isStaff && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -112,7 +167,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Button>
             )}
           </div>
-          {user.wallet && (
+          {!isStaff && user.wallet && (
             <div className={styles.wallet}>
               <span className={styles.walletLabel}>Баланс:</span>
               <span className={styles.walletBalance}>

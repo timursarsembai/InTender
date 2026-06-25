@@ -13,6 +13,7 @@ enum UserRole {
   BUYER
   SUPPLIER
   ADMIN
+  MODERATOR
 }
 
 enum UserStatus {
@@ -48,8 +49,10 @@ model User {
   authoredRatings Rating[] @relation("RatingAuthor")
   targetedRatings Rating[] @relation("RatingTarget")
 
-  notifications Notification[] @relation("UserNotifications")
-  chatMessages  ChatMessage[]  @relation("UserChatMessages")
+  notifications     Notification[]     @relation("UserNotifications")
+  chatMessages      ChatMessage[]      @relation("UserChatMessages")
+  supportChatRoom   SupportChatRoom?
+  supportMessages   SupportChatMessage[] @relation("SupportMessages")
 
   @@map("users")
 }
@@ -248,10 +251,11 @@ model FileObject {
   antivirusStatus AntivirusStatus @default(PENDING) @map("antivirus_status")
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
 
-  owner        User              @relation(fields: [ownerUserId], references: [id])
-  attachments  OrderAttachment[]
-  aiSpecJobs   AiSpecJob[]
-  chatMessages ChatMessage[]     @relation("ChatAttachments")
+  owner           User                 @relation(fields: [ownerUserId], references: [id])
+  attachments     OrderAttachment[]
+  aiSpecJobs      AiSpecJob[]
+  chatMessages    ChatMessage[]        @relation("ChatAttachments")
+  supportMessages SupportChatMessage[] @relation("SupportAttachments")
 
   @@map("file_objects")
 }
@@ -530,6 +534,42 @@ model ChatMessage {
 
   @@index([chatRoomId, createdAt])
   @@map("chat_messages")
+}
+
+// ─── Support Chat ────────────────────────────────────────────────────
+
+enum SupportChatStatus {
+  OPEN
+  CLOSED
+}
+
+model SupportChatRoom {
+  id        String            @id @default(uuid()) @db.Uuid
+  userId    String            @unique @map("user_id") @db.Uuid
+  status    SupportChatStatus @default(OPEN)
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  user     User                 @relation(fields: [userId], references: [id])
+  messages SupportChatMessage[]
+
+  @@map("support_chat_rooms")
+}
+
+model SupportChatMessage {
+  id               String   @id @default(uuid()) @db.Uuid
+  roomId           String   @map("room_id") @db.Uuid
+  senderUserId     String   @map("sender_user_id") @db.Uuid
+  content          String   @default("")
+  attachmentFileId String?  @map("attachment_file_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  room           SupportChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender         User            @relation("SupportMessages", fields: [senderUserId], references: [id])
+  attachmentFile FileObject?     @relation("SupportAttachments", fields: [attachmentFileId], references: [id])
+
+  @@index([roomId, createdAt])
+  @@map("support_chat_messages")
 }
 
 // ─── App Config ──────────────────────────────────────────────────────

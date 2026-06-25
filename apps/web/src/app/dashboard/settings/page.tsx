@@ -13,7 +13,8 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/components/providers/AuthProvider';
 
 export default function SettingsPage() {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
+  const isStaff = user?.role === 'ADMIN' || user?.role === 'MODERATOR';
 
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -72,6 +73,17 @@ export default function SettingsPage() {
       setIsLoading(false);
     }
   };
+
+  if (isStaff) {
+    return (
+      <div style={{ maxWidth: '600px' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '2rem' }}>Настройки</h1>
+        <div style={{ padding: '2rem', backgroundColor: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
+          <p style={{ color: 'var(--text-secondary)' }}>Настройки аккаунта недоступны для администраторов и модераторов.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: '600px' }}>

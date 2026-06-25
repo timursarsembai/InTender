@@ -43,7 +43,16 @@ export class AiService {
 
   private async resolveProvider(): Promise<AiProvider> {
     const rows = await this.prisma.appConfig.findMany({
-      where: { key: { in: ['ai.provider', 'ai.deepseek.apiKey', 'ai.anthropic.apiKey', 'ai.gemini.apiKey'] } },
+      where: {
+        key: {
+          in: [
+            'ai.provider',
+            'ai.deepseek.apiKey', 'ai.deepseek.model',
+            'ai.anthropic.apiKey', 'ai.anthropic.model',
+            'ai.gemini.apiKey', 'ai.gemini.model',
+          ],
+        },
+      },
     });
     const cfg = Object.fromEntries(rows.map((r) => [r.key, r.value]));
 
@@ -57,15 +66,18 @@ export class AiService {
     switch (providerName) {
       case 'deepseek': {
         const key = cfg['ai.deepseek.apiKey'] ?? process.env.DEEPSEEK_API_KEY;
-        return key ? new DeepSeekProvider(key) : makeError('DEEPSEEK_API_KEY не задан');
+        const model = cfg['ai.deepseek.model'] ?? 'deepseek-chat';
+        return key ? new DeepSeekProvider(key, model) : makeError('DEEPSEEK_API_KEY не задан');
       }
       case 'claude': {
         const key = cfg['ai.anthropic.apiKey'] ?? process.env.ANTHROPIC_API_KEY;
-        return key ? new ClaudeProvider(key) : makeError('ANTHROPIC_API_KEY не задан');
+        const model = cfg['ai.anthropic.model'] ?? 'claude-sonnet-4-6';
+        return key ? new ClaudeProvider(key, model) : makeError('ANTHROPIC_API_KEY не задан');
       }
       case 'gemini': {
         const key = cfg['ai.gemini.apiKey'] ?? process.env.GEMINI_API_KEY;
-        return key ? new GeminiProvider(key) : makeError('GEMINI_API_KEY не задан');
+        const model = cfg['ai.gemini.model'] ?? 'gemini-2.0-flash';
+        return key ? new GeminiProvider(key, model) : makeError('GEMINI_API_KEY не задан');
       }
       default:
         return makeError(`Неизвестный AI_PROVIDER: ${providerName}`);

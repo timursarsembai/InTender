@@ -2,6 +2,7 @@ export enum UserRole {
   BUYER = 'BUYER',
   SUPPLIER = 'SUPPLIER',
   ADMIN = 'ADMIN',
+  MODERATOR = 'MODERATOR',
 }
 
 export enum OrderStatus {

@@ -34,7 +34,8 @@ describe('AdminService', () => {
       logAction: vi.fn(),
     } as any;
 
-    service = new AdminService(prismaService, walletsService, auditService);
+    const jwtService = { sign: vi.fn().mockReturnValue('token') } as any;
+    service = new AdminService(prismaService, walletsService, auditService, jwtService);
   });
 
   describe('resolveComplaint', () => {

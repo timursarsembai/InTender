@@ -7,19 +7,28 @@ import { useRouter, usePathname } from 'next/navigation';
 interface User {
   id: string;
   email: string;
-  role: 'BUYER' | 'SUPPLIER' | 'ADMIN';
+  role: 'BUYER' | 'SUPPLIER' | 'ADMIN' | 'MODERATOR';
   organizationId?: string;
   wallet?: {
     availableBalanceMinor: number;
   };
 }
 
+interface ImpersonatingInfo {
+  userId: string;
+  email: string;
+  originalToken: string;
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  impersonating: ImpersonatingInfo | null;
   login: (token: string, user: User) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  startImpersonation: (userId: string) => Promise<void>;
+  stopImpersonation: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +36,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [impersonating, setImpersonating] = useState<ImpersonatingInfo | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -65,10 +75,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (token: string, userData: User) => {
     localStorage.setItem('access_token', token);
     setUser(userData);
-    router.push('/dashboard');
+    router.push('/dashboard/orders');
   };
 
   const logout = () => {
+    if (impersonating) {
+      stopImpersonation();
+      return;
+    }
     localStorage.removeItem('access_token');
     setUser(null);
     router.push('/login');
@@ -78,8 +92,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetchUser();
   };
 
+  const startImpersonation = async (userId: string) => {
+    const originalToken = localStorage.getItem('access_token');
+    if (!originalToken) return;
+
+    const { access_token, user: targetUser } = await api.post<{
+      access_token: string;
+      user: { id: string; email: string; role: string };
+    }>(`/admin/impersonate/${userId}`);
+
+    setImpersonating({ userId, email: targetUser.email, originalToken });
+    localStorage.setItem('access_token', access_token);
+    await fetchUser();
+    router.push('/dashboard/orders');
+  };
+
+  const stopImpersonation = () => {
+    if (!impersonating) return;
+    localStorage.setItem('access_token', impersonating.originalToken);
+    setImpersonating(null);
+    fetchUser().then(() => router.push('/dashboard/admin/users'));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, impersonating, login, logout, refreshUser, startImpersonation, stopImpersonation }}
+    >
       {children}
     </AuthContext.Provider>
   );

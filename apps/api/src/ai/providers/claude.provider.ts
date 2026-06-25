@@ -5,7 +5,10 @@ import { SPEC_ANALYSIS_PROMPT } from './prompt';
 export class ClaudeProvider implements AiProvider {
   private readonly client: Anthropic;
 
-  constructor(apiKey: string) {
+  private readonly model: string;
+
+  constructor(apiKey: string, model = 'claude-sonnet-4-6') {
+    this.model = model;
     this.client = new Anthropic({ apiKey });
   }
 
@@ -28,7 +31,7 @@ export class ClaudeProvider implements AiProvider {
       : [{ type: 'text', text: `Спецификация:\n\n${fileBuffer.toString('utf-8')}` }];
 
     const response = await this.client.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: this.model,
       max_tokens: 4096,
       system: SPEC_ANALYSIS_PROMPT,
       messages: [{ role: 'user', content: userContent }],

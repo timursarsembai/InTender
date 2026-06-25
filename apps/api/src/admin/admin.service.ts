@@ -3,20 +3,25 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletsService } from '../wallets/wallets.service';
 import { AuditService } from '../audit/audit.service';
 import { ResolveComplaintDto } from './dto/resolve-complaint.dto';
 import { UpdateConfigDto } from './dto/update-config.dto';
-import { WalletTransactionType, ComplaintStatus } from '@prisma/client';
+import { Prisma, WalletTransactionType, ComplaintStatus, UserRole } from '@prisma/client';
 import { ErrorCode } from '@intender/shared';
 
 const CONFIG_KEYS = {
   aiProvider: 'ai.provider',
   deepseekApiKey: 'ai.deepseek.apiKey',
+  deepseekModel: 'ai.deepseek.model',
   anthropicApiKey: 'ai.anthropic.apiKey',
+  anthropicModel: 'ai.anthropic.model',
   geminiApiKey: 'ai.gemini.apiKey',
+  geminiModel: 'ai.gemini.model',
 } as const;
 
 @Injectable()
@@ -25,7 +30,73 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly walletsService: WalletsService,
     private readonly auditService: AuditService,
+    private readonly jwtService: JwtService,
   ) {}
+
+  async getUsers(skip = 0, take = 50, search?: string) {
+    const where = search
+      ? { email: { contains: search, mode: 'insensitive' as const } }
+      : undefined;
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          status: true,
+          createdAt: true,
+          organization: { select: { legalName: true } },
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return { users, total };
+  }
+
+  async setUserRole(adminId: string, userId: string, role: UserRole) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    if (user.role === UserRole.ADMIN) {
+      throw new ForbiddenException('Нельзя изменить роль администратора');
+    }
+    if (role === UserRole.ADMIN) {
+      throw new ForbiddenException('Нельзя назначить роль администратора через этот эндпоинт');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: { id: true, email: true, role: true },
+    });
+
+    await this.auditService.logAction(adminId, 'SET_USER_ROLE', 'USER', userId, { role });
+
+    return updated;
+  }
+
+  async impersonateUser(adminId: string, userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true, status: true },
+    });
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    if (user.role === UserRole.ADMIN) {
+      throw new ForbiddenException('Нельзя войти в аккаунт другого администратора');
+    }
+
+    const payload = { sub: user.id, email: user.email, role: user.role, impersonatedBy: adminId };
+    const access_token = this.jwtService.sign(payload);
+
+    await this.auditService.logAction(adminId, 'ADMIN_IMPERSONATE', 'USER', userId, {});
+
+    return { access_token, user: { id: user.id, email: user.email, role: user.role } };
+  }
 
   async getComplaints(skip = 0, take = 20) {
     return this.prisma.complaint.findMany({
@@ -47,8 +118,7 @@ export class AdminService {
       throw new BadRequestException('Жалоба уже рассмотрена');
     }
 
-    const executeResolution = async (tx: any) => {
-      // 2. Блокировка пользователя
+    const executeResolution = async (tx: Prisma.TransactionClient): Promise<void> => {
       if (dto.blockTargetUserStatus && complaint.targetUserId) {
         await tx.user.update({
           where: { id: complaint.targetUserId },
@@ -56,8 +126,7 @@ export class AdminService {
         });
       }
 
-      // 3. Обновление статуса жалобы
-      const updatedComplaint = await tx.complaint.update({
+      await tx.complaint.update({
         where: { id: complaintId },
         data: {
           status: dto.status,
@@ -66,7 +135,6 @@ export class AdminService {
         },
       });
 
-      // 4. Логирование
       await this.auditService.logAction(
         adminId,
         'RESOLVE_COMPLAINT',
@@ -80,8 +148,6 @@ export class AdminService {
         },
         tx,
       );
-
-      return updatedComplaint;
     };
 
     try {
@@ -140,12 +206,12 @@ export class AdminService {
 
     return {
       aiProvider: map[CONFIG_KEYS.aiProvider] ?? process.env.AI_PROVIDER ?? 'deepseek',
-      deepseekApiKey: map[CONFIG_KEYS.deepseekApiKey] ? '••••••••' : '',
-      anthropicApiKey: map[CONFIG_KEYS.anthropicApiKey] ? '••••••••' : '',
-      geminiApiKey: map[CONFIG_KEYS.geminiApiKey] ? '••••••••' : '',
       deepseekApiKeySet: !!map[CONFIG_KEYS.deepseekApiKey],
+      deepseekModel: map[CONFIG_KEYS.deepseekModel] ?? 'deepseek-chat',
       anthropicApiKeySet: !!map[CONFIG_KEYS.anthropicApiKey],
+      anthropicModel: map[CONFIG_KEYS.anthropicModel] ?? 'claude-sonnet-4-6',
       geminiApiKeySet: !!map[CONFIG_KEYS.geminiApiKey],
+      geminiModel: map[CONFIG_KEYS.geminiModel] ?? 'gemini-2.0-flash',
     };
   }
 
@@ -154,8 +220,11 @@ export class AdminService {
 
     if (dto.aiProvider) updates.push({ key: CONFIG_KEYS.aiProvider, value: dto.aiProvider });
     if (dto.deepseekApiKey) updates.push({ key: CONFIG_KEYS.deepseekApiKey, value: dto.deepseekApiKey });
+    if (dto.deepseekModel) updates.push({ key: CONFIG_KEYS.deepseekModel, value: dto.deepseekModel });
     if (dto.anthropicApiKey) updates.push({ key: CONFIG_KEYS.anthropicApiKey, value: dto.anthropicApiKey });
+    if (dto.anthropicModel) updates.push({ key: CONFIG_KEYS.anthropicModel, value: dto.anthropicModel });
     if (dto.geminiApiKey) updates.push({ key: CONFIG_KEYS.geminiApiKey, value: dto.geminiApiKey });
+    if (dto.geminiModel) updates.push({ key: CONFIG_KEYS.geminiModel, value: dto.geminiModel });
 
     await Promise.all(
       updates.map((u) =>

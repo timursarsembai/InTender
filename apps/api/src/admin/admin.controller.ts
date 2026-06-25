@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, ParseIntPipe, Query, DefaultValuePipe } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -14,6 +14,32 @@ import { UpdateConfigDto } from './dto/update-config.dto';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  @Get('users')
+  getUsers(
+    @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number,
+    @Query('take', new DefaultValuePipe(50), ParseIntPipe) take: number,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getUsers(skip, take, search);
+  }
+
+  @Post('users/:id/set-role')
+  setUserRole(
+    @CurrentUser() admin: { sub: string },
+    @Param('id') userId: string,
+    @Body('role') role: UserRole,
+  ) {
+    return this.adminService.setUserRole(admin.sub, userId, role);
+  }
+
+  @Post('impersonate/:userId')
+  impersonateUser(
+    @CurrentUser() admin: { sub: string },
+    @Param('userId') userId: string,
+  ) {
+    return this.adminService.impersonateUser(admin.sub, userId);
+  }
+
   @Get('config')
   getConfig() {
     return this.adminService.getConfig();
@@ -26,34 +52,34 @@ export class AdminController {
 
   @Get('complaints')
   getComplaints(
-    @Query('skip', ParseIntPipe) skip: number = 0,
-    @Query('take', ParseIntPipe) take: number = 20,
+    @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number,
+    @Query('take', new DefaultValuePipe(20), ParseIntPipe) take: number,
   ) {
     return this.adminService.getComplaints(skip, take);
   }
 
   @Post('complaints/:id/resolve')
   resolveComplaint(
-    @CurrentUser() admin: any,
+    @CurrentUser() admin: { sub: string },
     @Param('id') id: string,
     @Body() dto: ResolveComplaintDto,
   ) {
-    return this.adminService.resolveComplaint(admin.id, id, dto);
+    return this.adminService.resolveComplaint(admin.sub, id, dto);
   }
 
   @Post('refund')
   issueRefund(
-    @CurrentUser() admin: any,
+    @CurrentUser() admin: { sub: string },
     @Body('userId') userId: string,
     @Body('amountMinor', ParseIntPipe) amountMinor: number,
     @Body('idempotencyKey') idempotencyKey: string,
     @Body('reason') reason: string,
   ) {
-    return this.adminService.issueRefund(admin.id, userId, amountMinor, idempotencyKey, reason);
+    return this.adminService.issueRefund(admin.sub, userId, amountMinor, idempotencyKey, reason);
   }
 
   @Post('ratings/:id/delete')
-  deleteRating(@CurrentUser() admin: any, @Param('id') id: string) {
-    return this.adminService.deleteRating(admin.id, id);
+  deleteRating(@CurrentUser() admin: { sub: string }, @Param('id') id: string) {
+    return this.adminService.deleteRating(admin.sub, id);
   }
 }
