@@ -36,7 +36,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [impersonating, setImpersonating] = useState<ImpersonatingInfo | null>(null);
+
+  const [impersonating, setImpersonating] = useState<ImpersonatingInfo | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const raw = localStorage.getItem('impersonation');
+    return raw ? (JSON.parse(raw) as ImpersonatingInfo) : null;
+  });
   const router = useRouter();
   const pathname = usePathname();
 
@@ -101,7 +106,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: { id: string; email: string; role: string };
     }>(`/admin/impersonate/${userId}`);
 
-    setImpersonating({ userId, email: targetUser.email, originalToken });
+    const info: ImpersonatingInfo = { userId, email: targetUser.email, originalToken };
+    setImpersonating(info);
+    localStorage.setItem('impersonation', JSON.stringify(info));
     localStorage.setItem('access_token', access_token);
     await fetchUser();
     router.push('/dashboard/orders');
@@ -110,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const stopImpersonation = () => {
     if (!impersonating) return;
     localStorage.setItem('access_token', impersonating.originalToken);
+    localStorage.removeItem('impersonation');
     setImpersonating(null);
     fetchUser().then(() => router.push('/dashboard/admin/users'));
   };
