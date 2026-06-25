@@ -83,13 +83,24 @@ export default function HelpPage() {
   }, [room?.id]);
 
   const handleSend = async () => {
-    if (!text.trim() || !room) return;
+    if (!text.trim()) return;
     const content = text.trim();
     setText('');
     try {
-      await api.post('/support/send', { content });
+      const result = await api.post<{ roomId: string; message: SupportMessage }>('/support/send', { content });
+      // If room wasn't loaded yet, set it now and join via WebSocket
+      if (!room) {
+        await loadMessages();
+      } else {
+        // Optimistically add message if WS hasn't delivered it yet
+        setMessages((prev) => {
+          if (prev.find((m) => m.id === result.message.id)) return prev;
+          return [...prev, result.message];
+        });
+      }
     } catch (err) {
       console.error(err);
+      setText(content); // restore text on failure
     }
   };
 
@@ -102,7 +113,7 @@ export default function HelpPage() {
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !room) return;
+    if (!file) return;
     e.target.value = '';
 
     if (file.size > 25 * 1024 * 1024) {
