@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class SendMessageDto {
   @IsString()
@@ -6,6 +6,10 @@ export class SendMessageDto {
   chatRoomId!: string;
 
   @IsString()
-  @IsNotEmpty()
-  content!: string;
+  @IsOptional()
+  content?: string;
+
+  @IsUUID()
+  @IsOptional()
+  attachmentFileId?: string;
 }

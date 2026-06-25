@@ -3,11 +3,21 @@
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 
+export interface ChatAttachment {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  downloadUrl: string;
+}
+
 interface ChatMessage {
   id: string;
   chatRoomId: string;
   senderUserId: string;
   content: string;
+  attachmentFileId?: string | null;
+  attachment?: ChatAttachment | null;
   isRead: boolean;
   createdAt: string;
   sender: { id: string; email: string };
@@ -16,7 +26,7 @@ interface ChatMessage {
 interface ChatContextType {
   socket: Socket | null;
   connected: boolean;
-  sendMessage: (roomId: string, content: string) => void;
+  sendMessage: (roomId: string, content: string, attachmentFileId?: string) => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
   messages: Record<string, ChatMessage[]>;
@@ -104,14 +114,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const sendMessage = (roomId: string, content: string) => {
+  const sendMessage = (roomId: string, content: string, attachmentFileId?: string) => {
     const s = socketRef.current;
     if (!s) {
       console.warn('[Chat] no socket — message not sent');
       return;
     }
     // Emit regardless of connected flag; socket.io buffers until connected.
-    s.emit('sendMessage', { chatRoomId: roomId, content });
+    s.emit('sendMessage', { chatRoomId: roomId, content, attachmentFileId });
   };
 
   const joinRoom = (roomId: string) => {

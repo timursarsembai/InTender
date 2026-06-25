@@ -112,6 +112,30 @@ export class FilesService {
     };
   }
 
+  /**
+   * Presigned download URL for a chat attachment.
+   * Access is assumed to be already verified by the caller (chat room membership),
+   * so this skips the order-based access checks.
+   */
+  async presignChatAttachment(fileId: string) {
+    const file = await this.prisma.fileObject.findUnique({ where: { id: fileId } });
+    if (!file) return null;
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: file.storageKey,
+    });
+    const downloadUrl = await getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
+
+    return {
+      id: file.id,
+      originalName: file.originalName,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+      downloadUrl,
+    };
+  }
+
   private async checkFileAccess(userId: string, file: any): Promise<boolean> {
     // Владелец всегда имеет доступ
     if (file.ownerUserId === userId) return true;
@@ -121,6 +145,20 @@ export class FilesService {
       include: { organization: true },
     });
     const isSupplier = !!user?.organization;
+
+    // Доступ через чат: файл прикреплён к сообщению в комнате, где состоит организация пользователя
+    if (user?.organization) {
+      const orgId = user.organization.id;
+      const chatMsg = await this.prisma.chatMessage.findFirst({
+        where: {
+          attachmentFileId: file.id,
+          chatRoom: {
+            OR: [{ buyerOrganizationId: orgId }, { supplierOrganizationId: orgId }],
+          },
+        },
+      });
+      if (chatMsg) return true;
+    }
 
     // Если файл привязан к заказам, проверяем публичность
     for (const attachment of file.attachments) {

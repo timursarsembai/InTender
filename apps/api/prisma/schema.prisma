@@ -248,9 +248,10 @@ model FileObject {
   antivirusStatus AntivirusStatus @default(PENDING) @map("antivirus_status")
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
 
-  owner       User              @relation(fields: [ownerUserId], references: [id])
-  attachments OrderAttachment[]
-  aiSpecJobs  AiSpecJob[]
+  owner        User              @relation(fields: [ownerUserId], references: [id])
+  attachments  OrderAttachment[]
+  aiSpecJobs   AiSpecJob[]
+  chatMessages ChatMessage[]     @relation("ChatAttachments")
 
   @@map("file_objects")
 }
@@ -515,15 +516,17 @@ model ChatRoom {
 }
 
 model ChatMessage {
-  id           String   @id @default(uuid()) @db.Uuid
-  chatRoomId   String   @map("chat_room_id") @db.Uuid
-  senderUserId String   @map("sender_user_id") @db.Uuid
-  content      String
-  isRead       Boolean  @default(false) @map("is_read")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id               String   @id @default(uuid()) @db.Uuid
+  chatRoomId       String   @map("chat_room_id") @db.Uuid
+  senderUserId     String   @map("sender_user_id") @db.Uuid
+  content          String   @default("")
+  attachmentFileId String?  @map("attachment_file_id") @db.Uuid
+  isRead           Boolean  @default(false) @map("is_read")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
-  sender   User     @relation("UserChatMessages", fields: [senderUserId], references: [id])
+  chatRoom       ChatRoom    @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  sender         User        @relation("UserChatMessages", fields: [senderUserId], references: [id])
+  attachmentFile FileObject? @relation("ChatAttachments", fields: [attachmentFileId], references: [id])
 
   @@index([chatRoomId, createdAt])
   @@map("chat_messages")

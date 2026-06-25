@@ -1,9 +1,25 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { FilesService } from '../files/files.service';
 
 @Injectable()
 export class ChatService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private filesService: FilesService,
+  ) {}
+
+  /** Attaches a fresh presigned download URL to a message that carries a file. */
+  private async withAttachment<T extends { attachmentFileId: string | null }>(message: T) {
+    if (!message.attachmentFileId) return { ...message, attachment: null };
+    const attachment = await this.filesService.presignChatAttachment(message.attachmentFileId);
+    return { ...message, attachment };
+  }
 
   async getRoomsForUser(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -50,16 +66,28 @@ export class ChatService {
       throw new ForbiddenException('Access denied');
     }
 
-    return this.prisma.chatMessage.findMany({
+    const messages = await this.prisma.chatMessage.findMany({
       where: { chatRoomId: roomId },
       orderBy: { createdAt: 'asc' },
       include: {
         sender: { select: { id: true, email: true } },
       },
     });
+
+    return Promise.all(messages.map((m) => this.withAttachment(m)));
   }
 
-  async sendMessage(userId: string, roomId: string, content: string) {
+  async sendMessage(
+    userId: string,
+    roomId: string,
+    content: string,
+    attachmentFileId?: string,
+  ) {
+    const text = (content ?? '').trim();
+    if (!text && !attachmentFileId) {
+      throw new BadRequestException('Сообщение не может быть пустым');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { organization: true },
@@ -76,11 +104,20 @@ export class ChatService {
       throw new ForbiddenException('Access denied');
     }
 
+    // Attachment must belong to the sender (uploaded via files upload-intent).
+    if (attachmentFileId) {
+      const file = await this.prisma.fileObject.findUnique({ where: { id: attachmentFileId } });
+      if (!file || file.ownerUserId !== userId) {
+        throw new ForbiddenException('Файл недоступен');
+      }
+    }
+
     const message = await this.prisma.chatMessage.create({
       data: {
         chatRoomId: roomId,
         senderUserId: userId,
-        content: content,
+        content: text,
+        attachmentFileId: attachmentFileId ?? null,
       },
       include: {
         sender: { select: { id: true, email: true, role: true } },
@@ -92,7 +129,7 @@ export class ChatService {
       data: { updatedAt: new Date() },
     });
 
-    return message;
+    return this.withAttachment(message);
   }
 
   async findOrCreateRoom(
