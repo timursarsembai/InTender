@@ -39,23 +39,26 @@ export class SupportChatGateway implements OnGatewayConnection, OnGatewayDisconn
     const role = client.data.user.role;
     const isStaff = role === 'ADMIN' || role === 'MODERATOR';
 
-    let result: { roomId: string; message: object } | object;
+    let roomId: string;
+    let message: object;
 
     if (isStaff) {
-      const message = await this.supportChatService.staffSendMessage(
+      message = await this.supportChatService.staffSendMessage(
         userId,
         dto.roomId,
         dto.content ?? '',
         dto.attachmentFileId,
       );
-      result = { roomId: dto.roomId, message };
+      roomId = dto.roomId;
     } else {
-      result = await this.supportChatService.sendMessage(userId, dto.content ?? '', dto.attachmentFileId);
+      const result = await this.supportChatService.sendMessage(userId, dto.content ?? '', dto.attachmentFileId);
+      roomId = result.roomId;
+      message = result.message;
     }
 
-    const roomId = (result as { roomId: string }).roomId ?? dto.roomId;
-    this.server.to(roomId).emit('newSupportMessage', (result as { message: object }).message ?? result);
+    // Always include roomId in payload so clients can route without stale closure issues
+    this.server.to(roomId).emit('newSupportMessage', { ...message, roomId });
 
-    return { event: 'supportMessageSent', data: result };
+    return { event: 'supportMessageSent', data: { roomId, message } };
   }
 }

@@ -33,6 +33,7 @@ export default function AdminSupportPage() {
   const { user } = useAuth();
   const [rooms, setRooms] = useState<SupportRoom[]>([]);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const activeRoomIdRef = useRef<string | null>(null);
   const [messages, setMessages] = useState<Record<string, SupportMessage[]>>({});
   const [text, setText] = useState('');
   const [loadingRooms, setLoadingRooms] = useState(true);
@@ -72,7 +73,7 @@ export default function AdminSupportPage() {
     });
 
     socket.on('newSupportMessage', (msg: SupportMessage & { roomId?: string }) => {
-      const roomId = msg.roomId ?? activeRoomId;
+      const roomId = msg.roomId ?? activeRoomIdRef.current;
       if (!roomId) return;
       setMessages((prev) => {
         const room = prev[roomId] ?? [];
@@ -87,6 +88,7 @@ export default function AdminSupportPage() {
 
   const handleSelectRoom = async (roomId: string) => {
     setActiveRoomId(roomId);
+    activeRoomIdRef.current = roomId;
     if (!joinedRoomsRef.current.has(roomId)) {
       joinedRoomsRef.current.add(roomId);
       socketRef.current?.emit('joinSupportRoom', { roomId });
