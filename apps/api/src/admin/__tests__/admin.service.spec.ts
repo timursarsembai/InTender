@@ -3,9 +3,8 @@ import { AdminService } from '../admin.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WalletsService } from '../../wallets/wallets.service';
 import { AuditService } from '../../audit/audit.service';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ComplaintStatus, UserStatus, WalletTransactionType } from '@prisma/client';
-import { ErrorCode } from '@intender/shared';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -24,17 +23,17 @@ describe('AdminService', () => {
         update: vi.fn(),
       },
       $transaction: vi.fn(),
-    } as any;
+    } as unknown as PrismaService;
 
     walletsService = {
       charge: vi.fn(),
-    } as any;
+    } as unknown as WalletsService;
 
     auditService = {
       logAction: vi.fn(),
-    } as any;
+    } as unknown as AuditService;
 
-    const jwtService = { sign: vi.fn().mockReturnValue('token') } as any;
+    const jwtService = { sign: vi.fn().mockReturnValue('token') } as unknown as import('@nestjs/jwt').JwtService;
     service = new AdminService(prismaService, walletsService, auditService, jwtService);
   });
 
@@ -52,7 +51,7 @@ describe('AdminService', () => {
     it('should throw BadRequest if already resolved', async () => {
       vi.mocked(prismaService.complaint.findUnique).mockResolvedValue({
         status: ComplaintStatus.RESOLVED,
-      } as any);
+      } as unknown as Awaited<ReturnType<typeof prismaService.complaint.findUnique>>);
       await expect(
         service.resolveComplaint('admin-1', 'c-1', {
           status: ComplaintStatus.RESOLVED,
@@ -67,22 +66,10 @@ describe('AdminService', () => {
         status: ComplaintStatus.PENDING,
         reporterUserId: 'u-1',
         targetUserId: 'u-2',
-      } as any);
-
-      const executeResolutionMock = async () => {
-        const txMock = {
-          user: { update: vi.fn() },
-          complaint: {
-            update: vi.fn().mockResolvedValue({ id: 'c-1', status: ComplaintStatus.RESOLVED }),
-          },
-        };
-        // call the callback mock
-        await txMock.complaint.update();
-        await txMock.user.update();
-      };
+      } as unknown as Awaited<ReturnType<typeof prismaService.complaint.findUnique>>);
 
       vi.mocked(walletsService.charge).mockImplementation(
-        async (userId, amount, type, key, refId, action) => {
+        async (_userId, _amount, _type, _key, _refId, action) => {
           if (action) {
             const txMock = {
               user: { update: vi.fn() },
@@ -90,13 +77,13 @@ describe('AdminService', () => {
                 update: vi.fn().mockResolvedValue({ id: 'c-1', status: ComplaintStatus.RESOLVED }),
               },
             };
-            await action(txMock as any);
+            await action(txMock as unknown as Parameters<typeof action>[0]);
           }
-          return { id: 'tx-1' };
+          return { id: 'tx-1' } as unknown as Awaited<ReturnType<typeof walletsService.charge>>;
         },
       );
 
-      const result = await service.resolveComplaint('admin-1', 'c-1', {
+      await service.resolveComplaint('admin-1', 'c-1', {
         status: ComplaintStatus.RESOLVED,
         resolution: 'Banned user and refunded',
         refundAmountMinor: 5000,
@@ -119,11 +106,11 @@ describe('AdminService', () => {
   describe('issueRefund', () => {
     it('should issue manual refund and log audit', async () => {
       vi.mocked(walletsService.charge).mockImplementation(
-        async (userId, amount, type, key, refId, action) => {
+        async (_userId, _amount, _type, _key, _refId, action) => {
           if (action) {
-            await action({} as any);
+            await action({} as Parameters<typeof action>[0]);
           }
-          return { id: 'tx-1' };
+          return { id: 'tx-1' } as unknown as Awaited<ReturnType<typeof walletsService.charge>>;
         },
       );
 
